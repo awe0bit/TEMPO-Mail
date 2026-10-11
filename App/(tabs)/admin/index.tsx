@@ -1,10 +1,11 @@
-import { Button as NativeButton, Host, Menu as NativeMenu } from '@expo/ui/swift-ui';
+import { Button as NativeButton, Host, Image as NativeImage, Menu as NativeMenu } from '@expo/ui/swift-ui';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert, RefreshControl, StyleSheet, View } from 'react-native';
-import { Dialog, List, Portal, Text, TextInput, useTheme } from 'react-native-paper';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { List, Text, TextInput, useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createManagedAccount, createTemporaryAddress, deleteManagedAccount, deleteTemporaryAddress,
   fetchManagedAccounts, fetchTemporaryAddresses, setManagedAccountSuspended, setTemporaryAddressEnabled
@@ -13,13 +14,14 @@ import { AccountMenu } from '@/components/AccountMenu';
 import { previewManagedAccounts, previewTemporaryAddresses } from '@/preview/fixtures';
 import { useAppState } from '@/state/app-state';
 import type { ManagedAccount, TemporaryAddress } from '@/types';
-import { NativeGlassButton, NativeSegmentedControl } from '@/components/NativeControls';
+import { NativeGlassButton, NativeGlassIconButton, NativeSegmentedControl } from '@/components/NativeControls';
 
 const isSuspended = (account: ManagedAccount) =>
   Boolean((account.permissions as any)?.disabledPermissions?.authenticate);
 
 export default function AdminScreen() {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { selected, password, preview } = useAppState();
   const queryClient = useQueryClient();
   const [section, setSection] = useState('accounts');
@@ -41,34 +43,47 @@ export default function AdminScreen() {
   });
 
   const run = async (operation: (secret: string) => Promise<void>) => {
-    if (preview) { Alert.alert('预览模式', '预览不会修改服务器数据。'); return; }
+    if (preview) { Alert.alert('预览模式', '预览不会修改服务器数据。'); return false; }
     setBusy(true);
     try {
       await operation(await password());
       await queryClient.invalidateQueries({ queryKey: section === 'accounts' ? ['managed-accounts'] : ['temporary-addresses'] });
+      return true;
     } catch (reason) {
       Alert.alert('操作失败', reason instanceof Error ? reason.message : '未知错误');
+      return false;
     } finally { setBusy(false); }
   };
 
   const create = async () => {
     if (!selected) return;
-    if (section === 'accounts') {
-      await run((passwordValue) => createManagedAccount(selected, passwordValue, email, secret, description));
-    } else {
-      await run((passwordValue) => createTemporaryAddress(selected, passwordValue, prefix, domain, description));
+    const created = section === 'accounts'
+      ? await run((passwordValue) => createManagedAccount(selected, passwordValue, email, secret, description))
+      : await run((passwordValue) => createTemporaryAddress(selected, passwordValue, prefix, domain, description));
+    if (created) {
+      setDialog(null); setEmail(''); setSecret(''); setDescription(''); setPrefix(''); setDomain('');
     }
-    if (!preview) { setDialog(null); setEmail(''); setSecret(''); setDescription(''); setPrefix(''); setDomain(''); }
+  };
+
+  const openCreate = () => {
+    if (preview) { Alert.alert('预览模式', '连接管理员账户后才可以创建账户或临时邮箱。'); return; }
+    setDialog(section === 'accounts' ? 'account' : 'temporary');
+  };
+
+  const closeCreate = () => {
+    if (busy) return;
+    setDialog(null);
   };
 
   const separator = () => <View style={[styles.separator, { backgroundColor: theme.colors.outlineVariant }]} />;
-  const inputStyle = [styles.input, { backgroundColor: theme.colors.surfaceVariant }];
+  const inputStyle = [styles.input, { backgroundColor: 'transparent' }];
+  const createDisabled = busy || (dialog === 'account' && (!email.trim() || !secret));
 
   return (
     <View collapsable={false} style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{
         title: '管理', headerShadowVisible: false, headerLeft: () => <AccountMenu />,
-        headerRight: () => <Host matchContents><NativeButton label="添加" systemImage="plus" onPress={() => setDialog(section === 'accounts' ? 'account' : 'temporary')} /></Host>
+        headerRight: preview ? undefined : () => <Host matchContents><NativeButton label="添加" systemImage="plus" onPress={openCreate} /></Host>
       }} />
       {preview && <Text style={[styles.preview, { color: theme.colors.onSurfaceVariant }]}>预览模式 · 管理操作不会写入服务器</Text>}
       <NativeSegmentedControl value={section} onChange={setSection} options={[{ value: 'accounts', label: '账户' }, { value: 'temporary', label: '临时邮箱' }]} />
@@ -84,7 +99,7 @@ export default function AdminScreen() {
               style={styles.row}
               title={item.description || item.emailAddress}
               description={`${item.emailAddress}${isSuspended(item) ? ' · 已封禁' : ''}`}
-              left={(props) => <List.Icon {...props} color={theme.colors.onSurfaceVariant} icon={isSuspended(item) ? 'account-cancel-outline' : 'account-circle-outline'} />}
+              left={() => <Host style={styles.rowIcon}><NativeImage systemName={isSuspended(item) ? 'person.crop.circle.badge.xmark' : 'person.crop.circle'} size={27} color={theme.colors.onSurfaceVariant} /></Host>}
               right={() => <AccountActions item={item} currentEmail={selected?.email} disabled={busy} onSuspend={() => selected && run((passwordValue) => setManagedAccountSuspended(selected, passwordValue, item, !isSuspended(item)))} onDelete={() => selected && Alert.alert('永久删除账户？', item.emailAddress, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteManagedAccount(selected, passwordValue, item.id)) }])} />}
             />
           )}
@@ -97,27 +112,45 @@ export default function AdminScreen() {
           ItemSeparatorComponent={separator}
           ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{temporary.error instanceof Error ? temporary.error.message : '没有临时邮箱，或服务器未启用 Masked Email'}</Text>}
           renderItem={({ item }) => (
-            <List.Item style={styles.row} title={item.email} description={`${item.description || '无说明'} · ${item.enabled ? '启用' : '停用'}`} left={(props) => <List.Icon {...props} color={theme.colors.onSurfaceVariant} icon="email-fast-outline" />} right={() => <TemporaryActions item={item} disabled={busy} onToggle={() => selected && run((passwordValue) => setTemporaryAddressEnabled(selected, passwordValue, item, !item.enabled))} onDelete={() => selected && Alert.alert('删除临时邮箱？', item.email, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteTemporaryAddress(selected, passwordValue, item.id)) }])} />} />
+            <List.Item style={styles.row} title={item.email} description={`${item.description || '无说明'} · ${item.enabled ? '启用' : '停用'}`} left={() => <Host style={styles.rowIcon}><NativeImage systemName="envelope.badge" size={27} color={theme.colors.onSurfaceVariant} /></Host>} right={() => <TemporaryActions item={item} disabled={busy} onToggle={() => selected && run((passwordValue) => setTemporaryAddressEnabled(selected, passwordValue, item, !item.enabled))} onDelete={() => selected && Alert.alert('删除临时邮箱？', item.email, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteTemporaryAddress(selected, passwordValue, item.id)) }])} />} />
           )}
         />
       )}
-      <Portal>
-        <Dialog visible={dialog !== null} onDismiss={() => setDialog(null)}>
-          <Dialog.Title>{dialog === 'account' ? '添加账户' : '添加临时邮箱'}</Dialog.Title>
-          <Dialog.Content style={styles.form}>
-            {dialog === 'account' ? <>
-              <TextInput style={inputStyle} mode="flat" underlineColor="transparent" label="完整邮箱地址" value={email} onChangeText={setEmail} autoCapitalize="none" />
-              <TextInput style={inputStyle} mode="flat" underlineColor="transparent" label="显示名称（可选）" value={description} onChangeText={setDescription} />
-              <TextInput style={inputStyle} mode="flat" underlineColor="transparent" label="初始密码" value={secret} onChangeText={setSecret} secureTextEntry />
-            </> : <>
-              <TextInput style={inputStyle} mode="flat" underlineColor="transparent" label="前缀（留空自动生成）" value={prefix} onChangeText={setPrefix} autoCapitalize="none" />
-              <TextInput style={inputStyle} mode="flat" underlineColor="transparent" label="邮箱域名（留空使用默认）" value={domain} onChangeText={setDomain} autoCapitalize="none" />
-              <TextInput style={inputStyle} mode="flat" underlineColor="transparent" label="用途说明" value={description} onChangeText={setDescription} />
-            </>}
-          </Dialog.Content>
-          <Dialog.Actions><NativeGlassButton label="取消" onPress={() => setDialog(null)} /><NativeGlassButton label={busy ? '正在创建…' : '创建'} prominent isDisabled={busy} onPress={() => void create()} /></Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <Modal visible={dialog !== null} transparent animationType="slide" onRequestClose={closeCreate}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalRoot}>
+          <Pressable accessibilityRole="button" accessibilityLabel="关闭" onPress={closeCreate} style={styles.backdrop} />
+          <View style={[styles.sheet, { backgroundColor: theme.colors.elevation.level2, paddingBottom: Math.max(insets.bottom + 8, 14) }]}>
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeading}>
+                <Text variant="headlineSmall" style={styles.sheetTitle}>{dialog === 'account' ? '添加账户' : '添加临时邮箱'}</Text>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{dialog === 'account' ? '创建一个新的邮箱账户' : '创建一个可随时停用的临时地址'}</Text>
+              </View>
+              <NativeGlassIconButton label="关闭" systemImage="xmark" size={40} onPress={closeCreate} />
+            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
+              <View style={[styles.inputGroup, { backgroundColor: theme.colors.surface }]}>
+                {dialog === 'account' ? <>
+                  <TextInput autoFocus style={inputStyle} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="完整邮箱地址" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+                  <View style={[styles.inputSeparator, { backgroundColor: theme.colors.outlineVariant }]} />
+                  <TextInput style={inputStyle} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="显示名称（可选）" value={description} onChangeText={setDescription} />
+                  <View style={[styles.inputSeparator, { backgroundColor: theme.colors.outlineVariant }]} />
+                  <TextInput style={inputStyle} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="初始密码" value={secret} onChangeText={setSecret} secureTextEntry />
+                </> : <>
+                  <TextInput autoFocus style={inputStyle} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="前缀（留空自动生成）" value={prefix} onChangeText={setPrefix} autoCapitalize="none" />
+                  <View style={[styles.inputSeparator, { backgroundColor: theme.colors.outlineVariant }]} />
+                  <TextInput style={inputStyle} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="邮箱域名（留空使用默认）" value={domain} onChangeText={setDomain} autoCapitalize="none" keyboardType="email-address" />
+                  <View style={[styles.inputSeparator, { backgroundColor: theme.colors.outlineVariant }]} />
+                  <TextInput style={inputStyle} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="用途说明" value={description} onChangeText={setDescription} />
+                </>}
+              </View>
+            </ScrollView>
+            <View style={styles.sheetActions}>
+              <NativeGlassButton label="取消" onPress={closeCreate} />
+              <NativeGlassButton label={busy ? '正在创建…' : '创建'} prominent isDisabled={createDisabled} onPress={() => void create()} />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -136,8 +169,18 @@ const styles = StyleSheet.create({
   preview: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 2 },
   listContent: { paddingBottom: 24 },
   row: { paddingHorizontal: 8, paddingVertical: 3 },
+  rowIcon: { width: 52, height: 48, alignItems: 'center', justifyContent: 'center' },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 72, marginRight: 16 },
   empty: { padding: 40, textAlign: 'center' },
-  form: { gap: 10 },
-  input: { borderRadius: 15, overflow: 'hidden' }
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.28)' },
+  sheet: { maxHeight: '82%', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 18, paddingHorizontal: 20, paddingBottom: 14, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
+  sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 },
+  sheetHeading: { flex: 1, gap: 4 },
+  sheetTitle: { fontWeight: '700', letterSpacing: -0.5 },
+  form: { paddingBottom: 18 },
+  inputGroup: { borderRadius: 20, overflow: 'hidden' },
+  input: { height: 60 },
+  inputSeparator: { height: StyleSheet.hairlineWidth, marginLeft: 16 },
+  sheetActions: { minHeight: 54, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }
 });

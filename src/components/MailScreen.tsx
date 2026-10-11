@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchMail } from '@/api/jmap';
 import { AccountMenu } from '@/components/AccountMenu';
 import { MailList } from '@/components/MailList';
-import { NativeGlassButton } from '@/components/NativeControls';
+import { NativeGlassIconButton } from '@/components/NativeControls';
 import { useAppState } from '@/state/app-state';
 import { previewMail } from '@/preview/fixtures';
 
@@ -55,12 +55,11 @@ export function MailScreen() {
         emptyDetail="下拉即可重新检查服务器"
         error={query.error instanceof Error ? query.error.message : undefined}
       />
-      <NativeGlassButton
+      <NativeGlassIconButton
         label="写邮件"
         systemImage="square.and.pencil"
-        prominent
         onPress={() => router.push('/compose')}
-        style={[styles.compose, { bottom: Math.max(insets.bottom + 64, 82) }]}
+        style={[styles.compose, { bottom: Math.max(insets.bottom + 70, 88) }]}
       />
     </View>
   );
@@ -80,5 +79,5 @@ function MailboxMenu({ value, onChange }: { value: MailRole; onChange(value: Mai
 
 const styles = StyleSheet.create({
   page: { flex: 1 },
-  compose: { position: 'absolute', right: 18, width: 124, alignSelf: 'auto', zIndex: 10 }
+  compose: { position: 'absolute', right: 18, zIndex: 10 }
 });

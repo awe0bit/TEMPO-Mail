@@ -4,9 +4,11 @@ import { useAppState } from '@/state/app-state';
 
 export function AccountMenu() {
   const { accounts, selected, select } = useAppState();
+  const localPart = selected?.email.split('@')[0] || selected?.name || '账户';
+  const label = localPart.length > 10 ? `${localPart.slice(0, 9)}…` : localPart;
   return (
     <Host matchContents>
-      <Menu label={selected?.name || '账户'} systemImage="person.crop.circle">
+      <Menu label={label} systemImage="person.crop.circle">
         {accounts.map((account) => (
           <Button key={account.id} label={account.email} systemImage={account.id === selected?.id ? 'checkmark.circle.fill' : 'person.crop.circle'} onPress={() => select(account.id)} />
         ))}

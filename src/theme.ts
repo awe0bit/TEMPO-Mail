@@ -2,11 +2,11 @@ import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 
 export const tempoPalette = {
   light: {
-    canvas: '#F2F2F5',
-    surface: '#FAFAFC',
+    canvas: '#F7F7F9',
+    surface: '#FFFFFF',
     surfaceRaised: '#FFFFFF',
-    subtle: '#E8E8ED',
-    separator: '#D8D8DE',
+    subtle: '#ECECF1',
+    separator: '#DDDDE3',
     text: '#1C1C1E',
     muted: '#68686F'
   },

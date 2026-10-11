@@ -1,5 +1,5 @@
-import { Button, Host, Picker, Text } from '@expo/ui/swift-ui';
-import { buttonStyle, disabled, frame, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
+import { Button, Host, Image, Picker, Text } from '@expo/ui/swift-ui';
+import { accessibilityLabel, buttonStyle, disabled, frame, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import type { ComponentProps } from 'react';
 import { StyleProp, useWindowDimensions, ViewStyle } from 'react-native';
 
@@ -7,8 +7,18 @@ export function NativeGlassButton({ label, systemImage, onPress, prominent = fal
   const { width } = useWindowDimensions();
   const controlWidth = Math.min(Math.max(width - 40, 240), 480);
   return (
-    <Host style={[{ height: 52, alignSelf: wide ? 'center' : 'stretch', width: wide ? controlWidth : undefined }, style]} useViewportSizeMeasurement>
-      <Button label={label} systemImage={systemImage} onPress={onPress} modifiers={[buttonStyle(prominent ? 'glassProminent' : 'glass'), disabled(isDisabled), frame({ width: wide ? controlWidth : undefined, maxWidth: wide ? undefined : 1000, minHeight: 48 })]} />
+    <Host matchContents={!wide} style={[{ height: 52, alignSelf: wide ? 'center' : undefined, width: wide ? controlWidth : undefined }, style]} useViewportSizeMeasurement={wide}>
+      <Button label={label} systemImage={systemImage} onPress={onPress} modifiers={[frame({ width: wide ? controlWidth : undefined, minHeight: 48 }), buttonStyle(prominent ? 'glassProminent' : 'glass'), disabled(isDisabled)]} />
+    </Host>
+  );
+}
+
+export function NativeGlassIconButton({ label, systemImage, onPress, prominent = false, isDisabled = false, size = 56, style }: { label: string; systemImage: ComponentProps<typeof Image>['systemName']; onPress(): void; prominent?: boolean; isDisabled?: boolean; size?: number; style?: StyleProp<ViewStyle> }) {
+  return (
+    <Host matchContents style={[{ width: size, height: size }, style]}>
+      <Button onPress={onPress} modifiers={[frame({ width: size, height: size }), buttonStyle(prominent ? 'glassProminent' : 'glass'), disabled(isDisabled), accessibilityLabel(label)]}>
+        <Image systemName={systemImage} size={22} />
+      </Button>
     </Host>
   );
 }

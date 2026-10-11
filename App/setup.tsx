@@ -1,7 +1,7 @@
-import { Button as NativeButton, Host, Image as NativeImage } from '@expo/ui/swift-ui';
+import { Button as NativeButton, Host } from '@expo/ui/swift-ui';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DEFAULT_MAIL_DOMAIN, DEFAULT_MAIL_SERVER, DEFAULT_REGISTRATION_URL } from '@/config';
@@ -66,11 +66,10 @@ export default function Setup() {
     return (
       <SafeAreaView style={[styles.welcome, { backgroundColor: theme.colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View pointerEvents="none" style={[styles.glow, { backgroundColor: theme.colors.surfaceVariant }]} />
+        <View pointerEvents="none" style={[styles.glowTop, { backgroundColor: theme.colors.surfaceVariant }]} />
+        <View pointerEvents="none" style={[styles.glowBottom, { backgroundColor: theme.colors.surfaceVariant }]} />
         <View style={styles.hero}>
-          <Host style={styles.heroSymbol}>
-            <NativeImage systemName="envelope.open.fill" size={112} color={theme.colors.onBackground} />
-          </Host>
+          <Image source={require('../src/assets/tempo-mark.png')} resizeMode="contain" style={[styles.heroSymbol, { tintColor: theme.colors.onBackground }]} />
           <View style={styles.brandBlock}>
             <Text variant="displaySmall" style={styles.brand}>TEMPO Mail</Text>
             <Text variant="titleMedium" style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>你的邮箱，由你掌控。</Text>
@@ -143,14 +142,15 @@ export default function Setup() {
 
 const styles = StyleSheet.create({
   welcome: { flex: 1, overflow: 'hidden', paddingHorizontal: 20 },
-  glow: { position: 'absolute', width: 440, height: 440, borderRadius: 220, top: -210, right: -180, opacity: 0.62 },
-  hero: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 18 },
-  heroSymbol: { width: 180, height: 150, alignItems: 'center', justifyContent: 'center' },
-  brandBlock: { alignItems: 'center', gap: 8, marginTop: 18 },
-  brand: { fontWeight: '800', letterSpacing: -1.4 },
+  glowTop: { position: 'absolute', width: 330, height: 330, borderRadius: 165, top: -190, right: -130, opacity: 0.5 },
+  glowBottom: { position: 'absolute', width: 210, height: 210, borderRadius: 105, bottom: 40, left: -150, opacity: 0.28 },
+  hero: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 42, paddingBottom: 28 },
+  heroSymbol: { width: 112, height: 112 },
+  brandBlock: { alignItems: 'center', gap: 7, marginTop: 28 },
+  brand: { fontWeight: '800', letterSpacing: -1.2 },
   tagline: { fontWeight: '500' },
   serverLabel: { marginTop: 6 },
-  welcomeActions: { alignItems: 'center', gap: 10, paddingBottom: 22 },
+  welcomeActions: { width: '100%', alignItems: 'center', gap: 11, paddingBottom: 18 },
   textAction: { minHeight: 38, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   previewAction: { minHeight: 34, justifyContent: 'center', alignItems: 'center' },
   page: { flex: 1 },
