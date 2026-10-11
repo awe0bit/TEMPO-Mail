@@ -17,6 +17,11 @@ const config: ExpoConfig = {
     bundleIdentifier: 'one.darker.tempomail',
     deploymentTarget: '26.0',
     supportsTablet: true,
+    icon: {
+      light: './App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png',
+      dark: './App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png',
+      tinted: './App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-tinted.png'
+    },
     infoPlist: {
       NSLocalNetworkUsageDescription: '连接你配置的自托管邮件服务器'
     }

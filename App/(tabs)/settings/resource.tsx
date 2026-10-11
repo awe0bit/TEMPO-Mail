@@ -8,6 +8,7 @@ import { ActivityIndicator, List, Text, useTheme } from 'react-native-paper';
 import { fetchAdminSchema, queryAdminResource, setAdminResource } from '@/api/admin';
 import { adminZh, hasAdminObjectPermission, resolveAdminList, type AdminListAction } from '@/admin/schema';
 import { NativeGlassButton, NativeGlassIconButton } from '@/components/NativeControls';
+import { SettingsChevron } from '@/components/SettingsList';
 import { useAppState } from '@/state/app-state';
 
 const previewData: Record<string, Record<string, unknown>[]> = {
@@ -101,7 +102,7 @@ export default function AdminResourceScreen() {
             title={valueText(item[labelProperty])}
             description={secondary || undefined}
             onPress={() => setSelectedItem(item)}
-            right={() => listDefinition?.itemActions?.length ? <ActionMenu actions={listDefinition.itemActions} onAction={(action) => runAction(action, item)} /> : <List.Icon icon="chevron-right" />}
+            right={() => listDefinition?.itemActions?.length ? <ActionMenu actions={listDefinition.itemActions} onAction={(action) => runAction(action, item)} /> : <View style={styles.rowChevron}><SettingsChevron /></View>}
           />;
         }}
       />}
@@ -110,7 +111,7 @@ export default function AdminResourceScreen() {
         <View style={styles.modalRoot}>
           <Pressable style={styles.backdrop} onPress={() => setSelectedItem(null)} />
           <View style={[styles.sheet, { backgroundColor: theme.colors.elevation.level2 }]}>
-            <View style={styles.sheetHeader}><Text variant="headlineSmall" style={styles.sheetTitle}>{selectedItem ? valueText(selectedItem[labelProperty]) : title}</Text><NativeGlassIconButton label="关闭" systemImage="xmark" size={40} onPress={() => setSelectedItem(null)} /></View>
+            <View style={styles.sheetHeader}><Text variant="headlineSmall" style={styles.sheetTitle}>{selectedItem ? valueText(selectedItem[labelProperty]) : title}</Text><NativeGlassIconButton label="关闭" systemImage="xmark" size={44} onPress={() => setSelectedItem(null)} /></View>
             <ScrollView contentContainerStyle={styles.details}>
               {selectedItem && Object.entries(selectedItem).filter(([key]) => key !== 'id').map(([key, value]) => <View key={key} style={styles.detailRow}><Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>{adminZh(columns.find((column) => column.name === key)?.label ?? key)}</Text><Text variant="bodyMedium" selectable>{valueText(value)}</Text></View>)}
             </ScrollView>
@@ -133,11 +134,12 @@ const styles = StyleSheet.create({
   listContent: { paddingBottom: 32 },
   total: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 },
   row: { paddingHorizontal: 8, paddingVertical: 3 },
+  rowChevron: { justifyContent: 'center', paddingRight: 10 },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 20 },
   empty: { alignItems: 'center', padding: 60, gap: 6 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.28)' },
-  sheet: { maxHeight: '82%', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 20, paddingBottom: 30, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
+  sheet: { maxHeight: '82%', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 30, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 12 },
   sheetTitle: { flex: 1, fontWeight: '700', letterSpacing: -0.4 },
   details: { gap: 16, paddingBottom: 20 },

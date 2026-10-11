@@ -1,5 +1,5 @@
 import { FlashList } from '@shopify/flash-list';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import type { MailItem } from '@/types';
 
@@ -10,6 +10,7 @@ type Props = {
   emptyTitle: string;
   emptyDetail?: string;
   error?: string;
+  onOpen?(item: MailItem): void;
 };
 
 function displayTime(value: string) {
@@ -22,7 +23,7 @@ function displayTime(value: string) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-export function MailList({ data, refreshing, onRefresh, emptyTitle, emptyDetail, error }: Props) {
+export function MailList({ data, refreshing, onRefresh, emptyTitle, emptyDetail, error, onOpen }: Props) {
   const theme = useTheme();
 
   return (
@@ -44,7 +45,7 @@ export function MailList({ data, refreshing, onRefresh, emptyTitle, emptyDetail,
         const initial = sender.trim().slice(0, 1).toUpperCase() || '·';
         const unread = !item.keywords?.['$seen'];
         return (
-          <View style={styles.row}>
+          <Pressable onPress={() => onOpen?.(item)} style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.colors.surfaceVariant }]}>
             <View style={[styles.avatar, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>{initial}</Text>
             </View>
@@ -56,7 +57,7 @@ export function MailList({ data, refreshing, onRefresh, emptyTitle, emptyDetail,
               <Text variant="bodyMedium" numberOfLines={1} style={unread && styles.unread}>{item.subject || '（无主题）'}</Text>
               <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>{item.preview || ' '}</Text>
             </View>
-          </View>
+          </Pressable>
         );
       }}
     />
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: 2 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  sender: { flex: 1 },
+  sender: { flex: 1, fontSize: 16, lineHeight: 20, letterSpacing: -0.2 },
   unread: { fontWeight: '700' },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 68, marginRight: 18 },
   loading: { marginTop: 64 },

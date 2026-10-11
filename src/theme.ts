@@ -1,4 +1,5 @@
-import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
+import { Platform } from 'react-native';
+import { configureFonts, MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 
 export const tempoPalette = {
   light: {
@@ -27,7 +28,13 @@ export function createTempoTheme(isDark: boolean): MD3Theme {
 
   return {
     ...base,
-    roundness: 18,
+    roundness: 16,
+    fonts: configureFonts({
+      config: {
+        fontFamily: Platform.select({ ios: 'System', default: 'sans-serif' }),
+        letterSpacing: 0
+      }
+    }),
     colors: {
       ...base.colors,
       primary: palette.text,

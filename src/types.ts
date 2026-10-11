@@ -21,7 +21,9 @@ export type MailItem = {
   preview: string;
   receivedAt: string;
   from?: { name?: string; email: string }[];
+  to?: { name?: string; email: string }[];
   keywords?: Record<string, boolean>;
+  body?: string;
 };
 
 export type ManagedAccount = {

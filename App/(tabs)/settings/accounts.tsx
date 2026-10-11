@@ -1,4 +1,4 @@
-import { Button as NativeButton, Host, Image as NativeImage, Menu as NativeMenu } from '@expo/ui/swift-ui';
+import { Button as NativeButton, Host, Menu as NativeMenu } from '@expo/ui/swift-ui';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
@@ -15,6 +15,7 @@ import { previewManagedAccounts, previewTemporaryAddresses } from '@/preview/fix
 import { useAppState } from '@/state/app-state';
 import type { ManagedAccount, TemporaryAddress } from '@/types';
 import { NativeGlassButton, NativeGlassIconButton, NativeSegmentedControl } from '@/components/NativeControls';
+import { SettingsIcon } from '@/components/SettingsList';
 
 const isSuspended = (account: ManagedAccount) =>
   Boolean((account.permissions as any)?.disabledPermissions?.authenticate);
@@ -107,7 +108,7 @@ export default function AdminAccountsScreen() {
               style={styles.row}
               title={item.description || item.emailAddress}
               description={`${item.emailAddress}${isSuspended(item) ? ' · 已封禁' : ''}`}
-              left={() => <Host style={styles.rowIcon}><NativeImage systemName={isSuspended(item) ? 'person.crop.circle.badge.xmark' : 'person.crop.circle'} size={27} color={theme.colors.onSurfaceVariant} /></Host>}
+              left={() => <View style={styles.rowIcon}><SettingsIcon symbol={isSuspended(item) ? 'person.crop.circle.badge.xmark' : 'person.crop.circle.fill'} tone={isSuspended(item) ? 'red' : 'blue'} /></View>}
               right={() => <AccountActions item={item} currentEmail={selected?.email} disabled={busy} onSuspend={() => selected && run((passwordValue) => setManagedAccountSuspended(selected, passwordValue, item, !isSuspended(item)))} onDelete={() => selected && Alert.alert('永久删除账户？', item.emailAddress, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteManagedAccount(selected, passwordValue, item.id)) }])} />}
             />
           )}
@@ -120,7 +121,7 @@ export default function AdminAccountsScreen() {
           ItemSeparatorComponent={separator}
           ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{temporary.error instanceof Error ? temporary.error.message : '没有临时邮箱，或服务器未启用 Masked Email'}</Text>}
           renderItem={({ item }) => (
-            <List.Item style={styles.row} title={item.email} description={`${item.description || '无说明'} · ${item.enabled ? '启用' : '停用'}`} left={() => <Host style={styles.rowIcon}><NativeImage systemName="envelope.badge" size={27} color={theme.colors.onSurfaceVariant} /></Host>} right={() => <TemporaryActions item={item} disabled={busy} onToggle={() => selected && run((passwordValue) => setTemporaryAddressEnabled(selected, passwordValue, item, !item.enabled))} onDelete={() => selected && Alert.alert('删除临时邮箱？', item.email, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteTemporaryAddress(selected, passwordValue, item.id)) }])} />} />
+            <List.Item style={styles.row} title={item.email} description={`${item.description || '无说明'} · ${item.enabled ? '启用' : '停用'}`} left={() => <View style={styles.rowIcon}><SettingsIcon symbol="envelope.badge.fill" tone={item.enabled ? 'purple' : 'gray'} /></View>} right={() => <TemporaryActions item={item} disabled={busy} onToggle={() => selected && run((passwordValue) => setTemporaryAddressEnabled(selected, passwordValue, item, !item.enabled))} onDelete={() => selected && Alert.alert('删除临时邮箱？', item.email, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteTemporaryAddress(selected, passwordValue, item.id)) }])} />} />
           )}
         />
       )}
@@ -133,7 +134,7 @@ export default function AdminAccountsScreen() {
                 <Text variant="headlineSmall" style={styles.sheetTitle}>{dialog === 'account' ? '添加账户' : '添加临时邮箱'}</Text>
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{dialog === 'account' ? '创建一个新的邮箱账户' : '创建一个可随时停用的临时地址'}</Text>
               </View>
-              <NativeGlassIconButton label="关闭" systemImage="xmark" size={40} onPress={closeCreate} />
+              <NativeGlassIconButton label="关闭" systemImage="xmark" size={44} onPress={closeCreate} />
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.form}>
               <View style={[styles.inputGroup, { backgroundColor: theme.colors.surface }]}>
@@ -183,12 +184,12 @@ const styles = StyleSheet.create({
   empty: { padding: 40, textAlign: 'center' },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.28)' },
-  sheet: { maxHeight: '82%', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingTop: 18, paddingHorizontal: 20, paddingBottom: 14, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
+  sheet: { maxHeight: '82%', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 18, paddingHorizontal: 20, paddingBottom: 14, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 18 },
   sheetHeading: { flex: 1, gap: 4 },
   sheetTitle: { fontWeight: '700', letterSpacing: -0.5 },
   form: { paddingBottom: 18 },
-  inputGroup: { borderRadius: 20, overflow: 'hidden' },
+  inputGroup: { borderRadius: 16, overflow: 'hidden' },
   input: { height: 60 },
   inputSeparator: { height: StyleSheet.hairlineWidth, marginLeft: 16 },
   sheetActions: { minHeight: 54, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 10 }

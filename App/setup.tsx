@@ -66,8 +66,6 @@ export default function Setup() {
     return (
       <SafeAreaView style={[styles.welcome, { backgroundColor: theme.colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View pointerEvents="none" style={[styles.glowTop, { backgroundColor: theme.colors.surfaceVariant }]} />
-        <View pointerEvents="none" style={[styles.glowBottom, { backgroundColor: theme.colors.surfaceVariant }]} />
         <View style={styles.hero}>
           <Image source={require('../src/assets/tempo-mark.png')} resizeMode="contain" style={[styles.heroSymbol, { tintColor: theme.colors.onBackground }]} />
           <View style={styles.brandBlock}>
@@ -142,12 +140,10 @@ export default function Setup() {
 
 const styles = StyleSheet.create({
   welcome: { flex: 1, overflow: 'hidden', paddingHorizontal: 20 },
-  glowTop: { position: 'absolute', width: 330, height: 330, borderRadius: 165, top: -190, right: -130, opacity: 0.5 },
-  glowBottom: { position: 'absolute', width: 210, height: 210, borderRadius: 105, bottom: 40, left: -150, opacity: 0.28 },
   hero: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 42, paddingBottom: 28 },
-  heroSymbol: { width: 112, height: 112 },
+  heroSymbol: { width: 120, height: 120 },
   brandBlock: { alignItems: 'center', gap: 7, marginTop: 28 },
-  brand: { fontWeight: '800', letterSpacing: -1.2 },
+  brand: { fontSize: 38, lineHeight: 45, fontWeight: '800', letterSpacing: -1.2 },
   tagline: { fontWeight: '500' },
   serverLabel: { marginTop: 6 },
   welcomeActions: { width: '100%', alignItems: 'center', gap: 11, paddingBottom: 18 },
@@ -158,7 +154,7 @@ const styles = StyleSheet.create({
   heading: { gap: 8, marginHorizontal: 4, marginBottom: 22 },
   title: { fontWeight: '700', letterSpacing: -0.5 },
   intro: { lineHeight: 21 },
-  form: { borderRadius: 20, overflow: 'hidden' },
+  form: { borderRadius: 16, overflow: 'hidden' },
   input: { height: 60, backgroundColor: 'transparent' },
   inputContent: { minHeight: 60 },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: 16 },

@@ -1,4 +1,5 @@
 import { Button as NativeButton, Host, Menu as NativeMenu } from '@expo/ui/swift-ui';
+import { controlSize, frame } from '@expo/ui/swift-ui/modifiers';
 import { useQuery } from '@tanstack/react-query';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
@@ -54,6 +55,7 @@ export function MailScreen() {
         emptyTitle={`暂无${folder.label}邮件`}
         emptyDetail="下拉即可重新检查服务器"
         error={query.error instanceof Error ? query.error.message : undefined}
+        onOpen={(item) => router.push({ pathname: '/mail/[id]' as never, params: { id: item.id } } as never)}
       />
       <NativeGlassIconButton
         label="写邮件"
@@ -67,8 +69,8 @@ export function MailScreen() {
 
 function MailboxMenu({ value, onChange }: { value: MailRole; onChange(value: MailRole): void }) {
   return (
-    <Host matchContents>
-      <NativeMenu label="" systemImage="line.3.horizontal.decrease">
+    <Host matchContents style={{ width: 44, height: 44 }}>
+      <NativeMenu label="" systemImage="line.3.horizontal.decrease" modifiers={[controlSize('regular'), frame({ width: 44, height: 44 })]}>
         {folders.map((item) => (
           <NativeButton key={item.role} label={item.label} systemImage={value === item.role ? 'checkmark.circle.fill' : item.icon} onPress={() => onChange(item.role)} />
         ))}

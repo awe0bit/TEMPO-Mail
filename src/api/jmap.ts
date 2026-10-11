@@ -85,6 +85,47 @@ export async function fetchMail(account: MailAccount, password: string, role: 'i
   return result.list as unknown as MailItem[];
 }
 
+export async function fetchMailDetail(account: MailAccount, password: string, id: string): Promise<MailItem> {
+  const client = makeClient(account, password);
+  await client.fetchSession();
+  const result = await client.email_get({
+    accountId: account.accountId,
+    ids: [id],
+    properties: ['id', 'subject', 'preview', 'receivedAt', 'from', 'to', 'keywords', 'textBody', 'htmlBody', 'bodyValues'],
+    fetchTextBodyValues: true,
+    fetchHTMLBodyValues: true,
+    maxBodyValueBytes: 2_000_000
+  } as any);
+  const item = result.list?.[0] as any;
+  if (!item) throw new Error('邮件不存在或已被删除');
+  const textPart = item.textBody?.[0]?.partId;
+  const htmlPart = item.htmlBody?.[0]?.partId;
+  const rawBody = item.bodyValues?.[textPart]?.value ?? item.bodyValues?.[htmlPart]?.value ?? item.preview ?? '';
+  return { ...item, body: textPart ? rawBody : stripHtml(String(rawBody)) } as MailItem;
+}
+
+export async function updateMailKeywords(account: MailAccount, password: string, id: string, keywords: Record<string, boolean>) {
+  const client = makeClient(account, password);
+  await client.fetchSession();
+  const result = await client.email_set({ accountId: account.accountId, update: { [id]: { keywords } } } as any);
+  const failure = (result as any).notUpdated?.[id];
+  if (failure) throw new Error(failure.description || failure.type || '邮件状态更新失败');
+}
+
+const stripHtml = (value: string) => value
+  .replace(/<\s*(br|\/p|\/div)\s*\/?>/gi, '\n')
+  .replace(/<style[\s\S]*?<\/style>/gi, '')
+  .replace(/<script[\s\S]*?<\/script>/gi, '')
+  .replace(/<[^>]+>/g, '')
+  .replace(/&nbsp;/g, ' ')
+  .replace(/&amp;/g, '&')
+  .replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>')
+  .replace(/&#39;/g, "'")
+  .replace(/&quot;/g, '"')
+  .replace(/\n{3,}/g, '\n\n')
+  .trim();
+
 function makeClient(account: MailAccount, password: string) {
   const basic = authorization(account.username, password);
   const transport = new FetchTransport((url, params) => fetch(url, {

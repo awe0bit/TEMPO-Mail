@@ -35,6 +35,7 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false, headerShadowVisible: false, contentStyle: { backgroundColor: paperTheme.colors.background } }}>
               <Stack.Screen name="setup" options={{ headerShown: true }} />
               <Stack.Screen name="compose" options={{ headerShown: true, presentation: 'modal' }} />
+              <Stack.Screen name="mail/[id]" options={{ headerShown: true }} />
             </Stack>
           </AppStateProvider>
         </PaperProvider>

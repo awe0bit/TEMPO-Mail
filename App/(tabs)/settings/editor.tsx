@@ -7,9 +7,11 @@ import { HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 import { fetchAdminSchema, getAdminResource, setAdminResource } from '@/api/admin';
 import { adminZh, resolveAdminForm, resolveAdminList, type AdminField } from '@/admin/schema';
 import { NativeGlassButton } from '@/components/NativeControls';
+import { SettingsDivider, SettingsGroup, SettingsSectionTitle } from '@/components/SettingsList';
 import { useAppState } from '@/state/app-state';
 
 const isComplex = (field: AdminField) => ['object', 'objectList', 'set', 'map'].includes(field.type.type);
+type FormFieldInfo = { name: string; label: string; placeholder?: string; keyLabel?: string; valueLabel?: string; section?: string };
 
 export default function AdminEditorScreen() {
   const theme = useTheme();
@@ -31,11 +33,23 @@ export default function AdminEditorScreen() {
   });
   const resolved = useMemo(() => schema.data ? resolveAdminForm(schema.data, params.view, item.data) : null, [schema.data, params.view, item.data]);
   const fields = resolved?.fields?.properties ?? {};
-  const formFields = useMemo(() => {
+  const formFields = useMemo<FormFieldInfo[]>(() => {
     if (!resolved) return [];
     if (resolved.form) return resolved.form.sections.flatMap((section) => section.fields.map((field) => ({ ...field, section: section.title })));
     return Object.keys(fields).map((name) => ({ name, label: name, section: undefined }));
   }, [resolved, fields]);
+  const formSections = useMemo(() => {
+    const result: { title: string; items: typeof formFields }[] = [];
+    for (const fieldInfo of formFields) {
+      const field = fields[fieldInfo.name];
+      if (!field || field.update === 'serverSet' || fieldInfo.name === '@type') continue;
+      const title = adminZh(fieldInfo.section || '基本信息');
+      let section = result.find((entry) => entry.title === title);
+      if (!section) { section = { title, items: [] }; result.push(section); }
+      section.items.push(fieldInfo);
+    }
+    return result;
+  }, [fields, formFields]);
 
   useEffect(() => {
     if (!resolved || ready || (params.id && !item.data)) return;
@@ -80,17 +94,19 @@ export default function AdminEditorScreen() {
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
         {schema.isLoading || (params.id && item.isLoading) ? <Text style={styles.loading}>正在读取服务器表单…</Text> : !resolved ? <Text style={styles.loading}>服务器没有提供可编辑表单</Text> : <>
           <Text variant="bodyMedium" style={[styles.intro, { color: theme.colors.onSurfaceVariant }]}>字段、默认值和权限直接来自当前 Stalwart 服务器。</Text>
-          {formFields.map((fieldInfo, index) => {
-            const field = fields[fieldInfo.name];
-            if (!field || field.update === 'serverSet' || fieldInfo.name === '@type') return null;
-            const previousSection = index > 0 ? formFields[index - 1]?.section : undefined;
-            const sectionChanged = fieldInfo.section && fieldInfo.section !== previousSection;
-            const disabled = Boolean(params.id && field.update === 'immutable');
-            return <View key={fieldInfo.name}>
-              {sectionChanged && <Text variant="labelLarge" style={[styles.sectionLabel, { color: theme.colors.onSurfaceVariant }]}>{adminZh(fieldInfo.section!)}</Text>}
-              <FieldControl field={field} label={adminZh(fieldInfo.label)} value={values[fieldInfo.name]} disabled={disabled} enums={schema.data?.enums ?? {}} onChange={(value) => update(fieldInfo.name, value)} />
-            </View>;
-          })}
+          {formSections.map((section) => <View key={section.title}>
+            <SettingsSectionTitle>{section.title}</SettingsSectionTitle>
+            <SettingsGroup>
+              {section.items.map((fieldInfo, index) => {
+                const field = fields[fieldInfo.name]!;
+                const disabled = Boolean(params.id && field.update === 'immutable');
+                return <View key={fieldInfo.name}>
+                  {index > 0 ? <SettingsDivider /> : null}
+                  <FieldControl field={field} label={adminZh(fieldInfo.label)} value={values[fieldInfo.name]} disabled={disabled} enums={schema.data?.enums ?? {}} onChange={(value) => update(fieldInfo.name, value)} />
+                </View>;
+              })}
+            </SettingsGroup>
+          </View>)}
           {error && <HelperText type="error" visible>{error}</HelperText>}
           <NativeGlassButton prominent wide label={busy ? '正在保存…' : '保存到服务器'} systemImage="checkmark" isDisabled={busy} onPress={() => void save()} style={styles.save} />
         </>}
@@ -102,12 +118,12 @@ export default function AdminEditorScreen() {
 function FieldControl({ field, label, value, disabled, enums, onChange }: { field: AdminField; label: string; value: unknown; disabled: boolean; enums: Record<string, { name: string; label: string }[]>; onChange(value: unknown): void }) {
   const theme = useTheme();
   if (field.type.type === 'boolean') {
-    return <View style={[styles.booleanRow, { backgroundColor: theme.colors.surface }]}><View style={styles.booleanText}><Text variant="bodyLarge">{label}</Text>{field.description && <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{field.description}</Text>}</View><Switch value={Boolean(value)} disabled={disabled} onValueChange={onChange} /></View>;
+    return <View style={styles.booleanRow}><View style={styles.booleanText}><Text style={styles.rowTitle}>{label}</Text>{field.description && <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{field.description}</Text>}</View><Switch value={Boolean(value)} disabled={disabled} onValueChange={onChange} /></View>;
   }
   if (field.type.type === 'enum') {
     const options = enums[field.type.enumName] ?? [];
     const current = options.find((option) => option.name === value)?.label ?? String(value ?? '选择');
-    return <View style={[styles.enumRow, { backgroundColor: theme.colors.surface }]}><Text variant="bodyLarge">{label}</Text><Host matchContents><NativeMenu label={adminZh(current)} systemImage="chevron.up.chevron.down">{options.map((option) => <NativeButton key={option.name} label={adminZh(option.label)} systemImage={option.name === value ? 'checkmark' : undefined} onPress={() => onChange(option.name)} />)}</NativeMenu></Host></View>;
+    return <View style={styles.enumRow}><Text style={styles.rowTitle}>{label}</Text><Host matchContents><NativeMenu label={adminZh(current)} systemImage="chevron.up.chevron.down">{options.map((option) => <NativeButton key={option.name} label={adminZh(option.label)} systemImage={option.name === value ? 'checkmark' : undefined} onPress={() => onChange(option.name)} />)}</NativeMenu></Host></View>;
   }
   const complex = isComplex(field);
   const text = complex && typeof value !== 'string' ? JSON.stringify(value ?? {}, null, 2) : value == null ? '' : String(value);
@@ -116,7 +132,7 @@ function FieldControl({ field, label, value, disabled, enums, onChange }: { fiel
     secureTextEntry={field.type.type === 'string' && ['secret', 'secretText'].includes(field.type.format ?? '')}
     multiline={complex || (field.type.type === 'string' && ['text', 'html'].includes(field.type.format ?? ''))}
     keyboardType={field.type.type === 'number' ? 'numeric' : field.type.type === 'string' && field.type.format === 'emailAddress' ? 'email-address' : 'default'}
-    autoCapitalize="none" onChangeText={onChange} style={[styles.input, { backgroundColor: theme.colors.surface }]}
+    autoCapitalize="none" onChangeText={onChange} style={styles.input}
   />{field.description && <HelperText type="info">{field.description}</HelperText>}</View>;
 }
 
@@ -125,11 +141,11 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 48 },
   loading: { padding: 50, textAlign: 'center' },
   intro: { marginHorizontal: 8, marginBottom: 14, lineHeight: 20 },
-  sectionLabel: { marginHorizontal: 8, marginTop: 18, marginBottom: 8 },
-  fieldWrap: { marginBottom: 10 },
-  input: { borderRadius: 16, overflow: 'hidden', minHeight: 58 },
-  booleanRow: { minHeight: 64, borderRadius: 16, paddingHorizontal: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  fieldWrap: { minHeight: 58 },
+  input: { minHeight: 58, backgroundColor: 'transparent' },
+  booleanRow: { minHeight: 58, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
   booleanText: { flex: 1, gap: 2 },
-  enumRow: { minHeight: 64, borderRadius: 16, paddingHorizontal: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  enumRow: { minHeight: 58, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  rowTitle: { fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
   save: { marginTop: 24 }
 });

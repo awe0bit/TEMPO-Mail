@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
@@ -46,6 +46,7 @@ export default function SearchScreen() {
         emptyTitle={term ? '没有找到邮件' : '搜索全部邮件'}
         emptyDetail={term ? '换一个关键词再试试' : '输入发件人、主题或正文关键词'}
         error={query.error instanceof Error ? query.error.message : undefined}
+        onOpen={(item) => router.push({ pathname: '/mail/[id]' as never, params: { id: item.id } } as never)}
       />
     </View>
   );
