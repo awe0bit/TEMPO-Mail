@@ -1,8 +1,8 @@
 import { Button as NativeButton, Host, Image as NativeImage, Menu as NativeMenu } from '@expo/ui/swift-ui';
 import { FlashList } from '@shopify/flash-list';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { Stack, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { List, Text, TextInput, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,12 +19,14 @@ import { NativeGlassButton, NativeGlassIconButton, NativeSegmentedControl } from
 const isSuspended = (account: ManagedAccount) =>
   Boolean((account.permissions as any)?.disabledPermissions?.authenticate);
 
-export default function AdminScreen() {
+export default function AdminAccountsScreen() {
+  const params = useLocalSearchParams<{ section?: string }>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { selected, password, preview } = useAppState();
+  const { selected, password, preview, access } = useAppState();
+  const temporaryAvailable = preview || access?.edition === 'enterprise';
   const queryClient = useQueryClient();
-  const [section, setSection] = useState('accounts');
+  const [section, setSection] = useState(params.section === 'temporary' && temporaryAvailable ? 'temporary' : 'accounts');
   const [dialog, setDialog] = useState<'account' | 'temporary' | null>(null);
   const [email, setEmail] = useState('');
   const [secret, setSecret] = useState('');
@@ -32,6 +34,10 @@ export default function AdminScreen() {
   const [prefix, setPrefix] = useState('');
   const [domain, setDomain] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!temporaryAvailable && section === 'temporary') setSection('accounts');
+  }, [section, temporaryAvailable]);
 
   const accounts = useQuery({
     queryKey: ['managed-accounts', selected?.id, preview], enabled: Boolean(selected),
@@ -82,11 +88,13 @@ export default function AdminScreen() {
   return (
     <View collapsable={false} style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{
-        title: '管理', headerShadowVisible: false, headerLeft: () => <AccountMenu />,
+        title: '账户与地址', headerShadowVisible: false, headerLeft: () => <AccountMenu />,
         headerRight: preview ? undefined : () => <Host matchContents><NativeButton label="添加" systemImage="plus" onPress={openCreate} /></Host>
       }} />
       {preview && <Text style={[styles.preview, { color: theme.colors.onSurfaceVariant }]}>预览模式 · 管理操作不会写入服务器</Text>}
-      <NativeSegmentedControl value={section} onChange={setSection} options={[{ value: 'accounts', label: '账户' }, { value: 'temporary', label: '临时邮箱' }]} />
+      {temporaryAvailable
+        ? <NativeSegmentedControl value={section} onChange={setSection} options={[{ value: 'accounts', label: '账户' }, { value: 'temporary', label: '临时邮箱' }]} />
+        : <Text style={[styles.editionNote, { color: theme.colors.onSurfaceVariant }]}>当前 Stalwart Community 不包含 Enterprise 临时邮箱功能。</Text>}
       {section === 'accounts' ? (
         <FlashList
           data={accounts.data ?? []} keyExtractor={(item) => item.id}
@@ -167,6 +175,7 @@ function TemporaryActions({ item, disabled, onToggle, onDelete }: { item: Tempor
 const styles = StyleSheet.create({
   page: { flex: 1 },
   preview: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 2 },
+  editionNote: { paddingHorizontal: 20, paddingVertical: 12 },
   listContent: { paddingBottom: 24 },
   row: { paddingHorizontal: 8, paddingVertical: 3 },
   rowIcon: { width: 52, height: 48, alignItems: 'center', justifyContent: 'center' },

@@ -34,7 +34,8 @@ export async function discover(server: string, email: string, username: string, 
     username: login,
     sessionUrl,
     apiUrl: session.apiUrl,
-    accountId
+    accountId,
+    managementAccountId: session.primaryAccounts?.['urn:stalwart:jmap'] ?? session.primaryAccounts?.['urn:ietf:params:jmap:core'] ?? accountId
   };
 }
 
@@ -132,10 +133,16 @@ export async function fetchManagedAccounts(account: MailAccount, password: strin
 }
 
 async function managementCall(account: MailAccount, password: string, methodCalls: unknown[]) {
+  const accountId = account.managementAccountId ?? account.accountId;
+  const callsWithAccountId = (methodCalls as [string, Record<string, unknown>, string][]).map(([name, args, callId]) => [
+    name,
+    { accountId, ...args },
+    callId
+  ]);
   const response = await request(account.apiUrl, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: authorization(account.username, password) },
-    body: JSON.stringify({ using: ['urn:ietf:params:jmap:core', 'urn:stalwart:jmap'], methodCalls })
+    body: JSON.stringify({ using: ['urn:ietf:params:jmap:core', 'urn:stalwart:jmap'], methodCalls: callsWithAccountId })
   });
   const json = await response.json();
   const error = json.methodResponses?.find((item: unknown[]) => item[0] === 'error');

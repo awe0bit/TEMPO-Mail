@@ -6,6 +6,7 @@ export type MailAccount = {
   sessionUrl: string;
   apiUrl: string;
   accountId: string;
+  managementAccountId?: string;
 };
 
 export type AdminAccess = {

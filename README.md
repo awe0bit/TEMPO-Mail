@@ -15,8 +15,9 @@ TEMPO Mail 是面向 Stalwart 自托管服务的 iOS 邮件客户端与移动管
 - 默认邮箱服务、邮箱域名和注册地址分别由 `EXPO_PUBLIC_DEFAULT_MAIL_SERVER`、`EXPO_PUBLIC_DEFAULT_MAIL_DOMAIN`、`EXPO_PUBLIC_REGISTRATION_URL` 配置；未开放公开注册时，客户端不会伪造可用入口。
 - 欢迎页提供“不登录，预览界面”，只读取本地示例数据，不保存凭据也不触发网络权限。
 - 顶部账户按钮展开原生小窗，列出已登录账户和“添加账户”。
-- 普通邮箱显示收件箱、星标、已发送、设置。
-- 拥有 `sysAccountGet` 与 `sysAccountQuery` 的邮箱额外显示“管理”底部导航。
+- 普通邮箱显示收件箱、设置和独立搜索入口。
+- 拥有 `sysAccountGet` 与 `sysAccountQuery` 的邮箱额外显示“概览”底部导航；原网页端的账户、域名、投递、日志、安全与服务器配置统一进入“设置”。
+- 管理页面从服务器 `/api/schema` 读取当前版本的对象、表单、列表和权限，不在客户端写死一套容易过期的控制台。
 - 管理权限来自服务器，客户端不会伪造管理员身份。
 
 ## 开源组件

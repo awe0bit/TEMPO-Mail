@@ -2,6 +2,8 @@
 
 TEMPO Mail 不复制现成项目的品牌或整套界面，只在许可证允许的范围内复用维护中的开源组件和协议实现。
 
+客户端会连接自托管的 [Stalwart Mail Server](https://github.com/stalwartlabs/stalwart)，并读取其 JMAP 管理 API 与 `/api/schema` 元数据；Stalwart 由原作者单独授权，本仓库不捆绑或再分发服务器二进制文件。
+
 | 用途 | 项目 | 许可证 |
 | --- | --- | --- |
 | JMAP 邮件协议 | [OpenPaaS-Suite/jmap-client-ts](https://github.com/OpenPaaS-Suite/jmap-client-ts) | MIT |
