@@ -11,7 +11,7 @@ export function AccountMenu() {
     <Host matchContents style={{ height: 44, maxWidth: 148 }}>
       <Menu label={label} systemImage="person.crop.circle" modifiers={[controlSize('regular'), frame({ height: 44, maxWidth: 148 })]}>
         {accounts.map((account) => (
-          <Button key={account.id} label={account.email} systemImage={account.id === selected?.id ? 'checkmark.circle.fill' : 'person.crop.circle'} onPress={() => select(account.id)} />
+          <Button key={account.id} label={menuAccountLabel(account.name, account.email)} systemImage={account.id === selected?.id ? 'checkmark.circle.fill' : 'person.crop.circle'} onPress={() => select(account.id)} />
         ))}
         <Divider />
         <Button label="添加账户" systemImage="person.crop.circle.badge.plus" onPress={() => router.push('/setup')} />
@@ -19,4 +19,9 @@ export function AccountMenu() {
       </Menu>
     </Host>
   );
+}
+
+function menuAccountLabel(name: string, email: string) {
+  const value = name.trim() || email;
+  return value.length > 18 ? `${value.slice(0, 17)}…` : value;
 }

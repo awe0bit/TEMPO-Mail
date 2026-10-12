@@ -97,7 +97,7 @@ export default function SettingsScreen() {
 
       <SettingsSectionTitle>本机账户</SettingsSectionTitle>
       <SettingsGroup>
-        <SettingsRow title={preview ? '退出预览' : '移除此账户'} description={preview ? '返回登录与服务器选择页面' : '只删除本机凭据，不删除服务器邮箱'} symbol="person.crop.circle.badge.xmark" tone="red" destructive onPress={deleteLocal} />
+        <SettingsRow title={preview ? '退出预览' : '移除此账户'} description={preview ? '返回登录与服务器选择页面' : '只删除本机凭据，不删除服务器邮箱'} symbol="rectangle.portrait.and.arrow.right" tone="red" destructive onPress={deleteLocal} />
       </SettingsGroup>
       <Text variant="bodySmall" style={[styles.footer, { color: theme.colors.onSurfaceVariant }]}>界面和业务更新通过 production OTA 发布；只有原生依赖、权限或 Swift 兼容层变化才需要重新安装。</Text>
     </ScrollView>
@@ -139,7 +139,7 @@ function PreviewSettings({ openResource }: { openResource(view: string, title: s
     { title: '域名与 DKIM', description: '托管域名、签名、证书与 DNS', view: 'x:Domain', symbol: 'globe', tone: 'green' },
     { title: '投递队列', description: '查看等待投递的邮件', view: 'x:QueuedMessage', symbol: 'paperplane.fill', tone: 'orange' },
     { title: '后台任务', description: '计划任务与失败任务', view: 'x:Task', symbol: 'clock.arrow.circlepath', tone: 'purple' },
-    { title: '安全规则', description: '已封禁与允许的 IP', view: 'x:BlockedIp', symbol: 'shield.lefthalf.filled', tone: 'red' }
+    { title: '安全规则', description: '已封禁与允许的 IP', view: 'x:BlockedIp', symbol: 'hand.raised.fill', tone: 'red' }
   ];
   return <>
     <SettingsSectionTitle>邮件服务管理</SettingsSectionTitle>

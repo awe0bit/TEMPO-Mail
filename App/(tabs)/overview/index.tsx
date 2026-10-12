@@ -86,7 +86,7 @@ export default function OverviewScreen() {
             <SettingsDivider />
             <SettingsRow title="失败任务" description={data.failedTasks ? `${data.failedTasks} 个任务需要处理` : '没有失败任务'} value={String(data.failedTasks)} symbol="exclamationmark.triangle.fill" tone="red" onPress={() => router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: 'x:Task/TaskFailed', title: '失败任务' } } as never)} />
             <SettingsDivider />
-            <SettingsRow title="已封禁 IP" description={`${data.blockedIps} 条安全规则`} value={String(data.blockedIps)} symbol="shield.lefthalf.filled" tone="red" onPress={() => router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: 'x:BlockedIp', title: '已封禁 IP' } } as never)} />
+            <SettingsRow title="已封禁 IP" description={`${data.blockedIps} 条安全规则`} value={String(data.blockedIps)} symbol="hand.raised.fill" tone="red" onPress={() => router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: 'x:BlockedIp', title: '已封禁 IP' } } as never)} />
           </SettingsGroup>
         </> : null}
       </ScrollView>
