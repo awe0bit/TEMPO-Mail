@@ -1,12 +1,33 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
-import { useMemo } from 'react';
+import * as Updates from 'expo-updates';
+import { useEffect, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { AppStateProvider } from '@/state/app-state';
 import { createTempoTheme } from '@/theme';
 
 const queryClient = new QueryClient();
+
+function AutomaticUpdates() {
+  useEffect(() => {
+    if (__DEV__ || !Updates.isEnabled) return;
+    let active = true;
+    const synchronize = async () => {
+      try {
+        const check = await Updates.checkForUpdateAsync();
+        if (!check.isAvailable || !active) return;
+        const fetched = await Updates.fetchUpdateAsync();
+        if (fetched.isNew && active) await Updates.reloadAsync();
+      } catch {
+        // Mail must remain usable when the update service or network is unavailable.
+      }
+    };
+    void synchronize();
+    return () => { active = false; };
+  }, []);
+  return null;
+}
 
 export default function RootLayout() {
   const isDark = useColorScheme() === 'dark';
@@ -31,6 +52,7 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={navigationTheme}>
         <PaperProvider theme={paperTheme}>
+          <AutomaticUpdates />
           <AppStateProvider>
             <Stack screenOptions={{ headerShown: false, headerShadowVisible: false, contentStyle: { backgroundColor: paperTheme.colors.background } }}>
               <Stack.Screen name="setup" options={{ headerShown: true }} />

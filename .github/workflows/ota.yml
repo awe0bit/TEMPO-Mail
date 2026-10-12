@@ -36,7 +36,7 @@ jobs:
       - run: npm run typecheck
       - name: Publish to production channel
         if: env.EXPO_TOKEN != '' && env.EXPO_PROJECT_ID != ''
-        run: npx eas-cli@latest update --channel production --platform ios --message "${{ github.sha }}" --non-interactive
+        run: npx eas-cli@latest update --channel production --environment production --platform ios --message "${{ github.sha }}" --non-interactive
       - name: Explain missing OTA credentials
         if: env.EXPO_TOKEN == '' || env.EXPO_PROJECT_ID == ''
         run: echo "TypeScript validated; add EXPO_TOKEN and EXPO_PROJECT_ID repository secrets to publish OTA."

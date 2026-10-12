@@ -30,7 +30,7 @@ const config: ExpoConfig = {
   updates: {
     url: `https://u.expo.dev/${projectId}`,
     checkAutomatically: 'ON_LOAD',
-    fallbackToCacheTimeout: 0,
+    fallbackToCacheTimeout: 2500,
     requestHeaders: { 'expo-channel-name': 'production' }
   },
   extra: { eas: { projectId } },

@@ -8,7 +8,7 @@
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "prebuild": "expo prebuild --platform ios --clean",
-    "update:production": "eas update --channel production --platform ios --non-interactive"
+    "update:production": "eas update --channel production --environment production --platform ios --non-interactive"
   },
   "dependencies": {
     "@expo/ui": "~57.0.22",
