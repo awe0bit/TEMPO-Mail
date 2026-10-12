@@ -1,8 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { PropsWithChildren, useEffect } from 'react';
+import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { create } from 'zustand';
 import { adminAccess, discover, isAdministrator } from '@/api/jmap';
+import { LaunchScreen } from '@/components/LaunchScreen';
 import type { AdminAccess, MailAccount } from '@/types';
 import { previewAccess, previewAccount } from '@/preview/fixtures';
 
@@ -105,11 +107,30 @@ export const useAppState = create<Store>((set, get) => ({
 export function AppStateProvider({ children }: PropsWithChildren) {
   const initialize = useAppState((state) => state.initialize);
   const ready = useAppState((state) => state.ready);
+  const [minimumElapsed, setMinimumElapsed] = useState(false);
+  const [layoutSettled, setLayoutSettled] = useState(false);
+  const [launchVisible, setLaunchVisible] = useState(true);
   useEffect(() => { void initialize(); }, [initialize]);
-  // Do not mount Expo Router's native tab controller until the saved account
-  // and its cached administrator capability have been restored. Mounting it
-  // earlier creates a three-item bar and then inserts the overview item on the
-  // next frame, which leaves UIKit's selected icon at the wrong vertical
-  // position until the first tab change.
-  return ready ? children : null;
+  useEffect(() => {
+    const timer = setTimeout(() => setMinimumElapsed(true), 700);
+    return () => clearTimeout(timer);
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    const timer = setTimeout(() => setLayoutSettled(true), 180);
+    return () => clearTimeout(timer);
+  }, [ready]);
+  const finishLaunch = useCallback(() => setLaunchVisible(false), []);
+
+  // The complete navigation tree mounts behind the launch screen only after
+  // the saved account and cached capabilities are known. The short overlap
+  // gives UIKit one layout pass before the user sees the native tab bar.
+  return (
+    <View style={styles.appRoot}>
+      {ready ? children : null}
+      {launchVisible ? <LaunchScreen prepared={ready && minimumElapsed && layoutSettled} onFinished={finishLaunch} /> : null}
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({ appRoot: { flex: 1 } });
