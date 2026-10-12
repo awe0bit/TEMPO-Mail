@@ -1,6 +1,4 @@
 import type { AdminAccess, MailAccount, MailItem, ManagedAccount, TemporaryAddress } from '@/types';
-import { Client } from 'jmap-client-ts';
-import { FetchTransport } from 'jmap-client-ts/lib/utils/fetch-transport';
 
 const authorization = (username: string, password: string) =>
   `Basic ${globalThis.btoa(`${username}:${password}`)}`;
@@ -15,10 +13,32 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeout = 15000)
   }
 }
 
-async function request(url: string, init: RequestInit, timeout = 15000) {
-  const response = await fetchWithTimeout(url, init, timeout);
-  if (!response.ok) throw new Error(`服务器请求失败（HTTP ${response.status}）`);
-  return response;
+function accountLogins(account: MailAccount) {
+  return [...new Set([account.username.trim(), account.email.trim(), account.email.split('@')[0]].filter(Boolean))];
+}
+
+export async function authenticatedRequest(account: MailAccount, password: string, url: string, init: RequestInit = {}, timeout = 15000) {
+  let lastResponse: Response | null = null;
+  for (const login of accountLogins(account)) {
+    const response = await fetchWithTimeout(url, {
+      ...init,
+      headers: { ...init.headers, Authorization: authorization(login, password) }
+    }, timeout);
+    if (response.status === 401 || response.status === 403) {
+      lastResponse = response;
+      continue;
+    }
+    if (!response.ok) {
+      let detail = '';
+      try {
+        const problem = await response.clone().json();
+        detail = problem.detail || problem.description || problem.title || '';
+      } catch { /* The status below is still actionable. */ }
+      throw new Error(detail || `服务器请求失败（HTTP ${response.status}）`);
+    }
+    return response;
+  }
+  throw new Error(`服务器请求失败（HTTP ${lastResponse?.status ?? 401}）`);
 }
 
 const MAIL_CAPABILITY = 'urn:ietf:params:jmap:mail';
@@ -111,9 +131,7 @@ export async function discover(server: string, email: string, username: string, 
 export async function adminAccess(account: MailAccount, password: string): Promise<AdminAccess | null> {
   const origin = new URL(account.sessionUrl).origin;
   try {
-    const response = await request(`${origin}/api/account`, {
-      headers: { Accept: 'application/json', Authorization: authorization(account.username, password) }
-    });
+    const response = await authenticatedRequest(account, password, `${origin}/api/account`, { headers: { Accept: 'application/json' } });
     return response.json();
   } catch {
     return null;
@@ -127,45 +145,57 @@ export const isAdministrator = (access: AdminAccess | null) =>
   hasPermission(access, 'sysAccountGet') && hasPermission(access, 'sysAccountQuery');
 
 async function call(account: MailAccount, password: string, methodCalls: unknown[]) {
-  const response = await request(account.apiUrl, {
+  const response = await authenticatedRequest(account, password, account.apiUrl, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
-      Authorization: authorization(account.username, password)
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({ using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail', 'urn:ietf:params:jmap:submission'], methodCalls })
   });
-  return response.json();
+  const json = await response.json();
+  const failure = json.methodResponses?.find((entry: unknown[]) => entry[0] === 'error');
+  if (failure) throw new Error(failure[1]?.description || failure[1]?.type || 'JMAP 请求失败');
+  return json;
 }
 
 export async function fetchMail(account: MailAccount, password: string, role: 'inbox' | 'sent' | 'starred' | 'all', search = ''): Promise<MailItem[]> {
-  const client = makeClient(account, password);
-  await client.fetchSession();
-  const mailbox = await client.mailbox_get({ accountId: account.accountId, ids: null });
-  const boxes = mailbox.list ?? [];
+  const mailboxResponse = await call(account, password, [['Mailbox/get', { accountId: account.accountId, ids: null }, 'mailboxes']]);
+  const boxes = mailboxResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Mailbox/get')?.[1]?.list ?? [];
   const filter: Record<string, unknown> = {};
   if (role === 'starred') filter.hasKeyword = '$flagged';
-  else if (role !== 'all') filter.inMailbox = boxes.find((item: { role?: string }) => item.role === role)?.id;
+  else if (role !== 'all') {
+    const mailboxId = boxes.find((item: { role?: string }) => item.role === role)?.id;
+    if (!mailboxId) return [];
+    filter.inMailbox = mailboxId;
+  }
   if (search.trim()) filter.text = search.trim();
-  const queried = await client.email_query({ accountId: account.accountId, filter, sort: [{ property: 'receivedAt', isAscending: false }], limit: 50 });
-  if (!queried.ids.length) return [];
-  const result = await client.email_get({ accountId: account.accountId, ids: queried.ids, properties: ['id', 'subject', 'preview', 'receivedAt', 'from', 'keywords'] });
-  return result.list as unknown as MailItem[];
+  const queryResponse = await call(account, password, [['Email/query', {
+    accountId: account.accountId,
+    ...(Object.keys(filter).length ? { filter } : {}),
+    sort: [{ property: 'receivedAt', isAscending: false }],
+    limit: 50
+  }, 'query']]);
+  const ids = queryResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/query')?.[1]?.ids ?? [];
+  if (!ids.length) return [];
+  const getResponse = await call(account, password, [['Email/get', {
+    accountId: account.accountId,
+    ids,
+    properties: ['id', 'subject', 'preview', 'receivedAt', 'from', 'keywords']
+  }, 'emails']]);
+  return (getResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/get')?.[1]?.list ?? []) as MailItem[];
 }
 
 export async function fetchMailDetail(account: MailAccount, password: string, id: string): Promise<MailItem> {
-  const client = makeClient(account, password);
-  await client.fetchSession();
-  const result = await client.email_get({
+  const response = await call(account, password, [['Email/get', {
     accountId: account.accountId,
     ids: [id],
     properties: ['id', 'subject', 'preview', 'receivedAt', 'from', 'to', 'keywords', 'textBody', 'htmlBody', 'bodyValues'],
     fetchTextBodyValues: true,
     fetchHTMLBodyValues: true,
     maxBodyValueBytes: 2_000_000
-  } as any);
-  const item = result.list?.[0] as any;
+  }, 'email']]);
+  const item = response.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/get')?.[1]?.list?.[0] as any;
   if (!item) throw new Error('邮件不存在或已被删除');
   const textPart = item.textBody?.[0]?.partId;
   const htmlPart = item.htmlBody?.[0]?.partId;
@@ -174,10 +204,9 @@ export async function fetchMailDetail(account: MailAccount, password: string, id
 }
 
 export async function updateMailKeywords(account: MailAccount, password: string, id: string, keywords: Record<string, boolean>) {
-  const client = makeClient(account, password);
-  await client.fetchSession();
-  const result = await client.email_set({ accountId: account.accountId, update: { [id]: { keywords } } } as any);
-  const failure = (result as any).notUpdated?.[id];
+  const response = await call(account, password, [['Email/set', { accountId: account.accountId, update: { [id]: { keywords } } }, 'update']]);
+  const result = response.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/set')?.[1];
+  const failure = result?.notUpdated?.[id];
   if (failure) throw new Error(failure.description || failure.type || '邮件状态更新失败');
 }
 
@@ -195,20 +224,9 @@ const stripHtml = (value: string) => value
   .replace(/\n{3,}/g, '\n\n')
   .trim();
 
-function makeClient(account: MailAccount, password: string) {
-  const basic = authorization(account.username, password);
-  const transport = new FetchTransport((url, params) => fetch(url, {
-    ...params,
-    headers: { ...params.headers, Authorization: basic }
-  }) as never);
-  return new Client({ sessionUrl: account.sessionUrl, accessToken: 'basic-transport', transport });
-}
-
 export async function sendMail(account: MailAccount, password: string, to: string, subject: string, body: string) {
-  const client = makeClient(account, password);
-  await client.fetchSession();
-  const mailbox = await client.mailbox_get({ accountId: account.accountId, ids: null });
-  const boxes = mailbox.list ?? [];
+  const mailboxResponse = await call(account, password, [['Mailbox/get', { accountId: account.accountId, ids: null }, 'mailboxes']]);
+  const boxes = mailboxResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Mailbox/get')?.[1]?.list ?? [];
   const drafts = boxes.find((item: { role?: string }) => item.role === 'drafts')?.id;
   if (!drafts) throw new Error('服务器没有草稿箱');
   const identities = await call(account, password, [['Identity/get', { accountId: account.accountId }, 'i']]);
@@ -216,21 +234,23 @@ export async function sendMail(account: MailAccount, password: string, to: strin
   if (!identity) throw new Error('服务器没有可用于发信的身份');
   const recipients = to.split(/[,;]/).map((value) => value.trim()).filter(Boolean).map((email) => ({ email }));
   if (!recipients.length) throw new Error('请填写收件人');
-  const created = await client.email_set({
-    accountId: account.accountId,
-    create: { draft: {
+  const createdResponse = await call(account, password, [['Email/set', {
+    accountId: account.accountId, create: { draft: {
       mailboxIds: { [drafts]: true }, keywords: { '$draft': true, '$seen': true },
       from: [{ name: identity.name || '', email: identity.email }], to: recipients, subject,
       bodyValues: { body: { value: body, isTruncated: false } }, textBody: [{ partId: 'body', type: 'text/plain' }]
     } }
-  } as any);
-  const emailId = (created as any).created?.draft?.id;
+  }, 'create']]);
+  const created = createdResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/set')?.[1];
+  const emailId = created?.created?.draft?.id;
+  const createFailure = created?.notCreated?.draft;
+  if (createFailure) throw new Error(createFailure.description || createFailure.type || '创建邮件失败');
   if (!emailId) throw new Error('服务器没有返回新邮件 ID');
-  const submitted = await client.emailSubmission_set({
-    accountId: account.accountId,
-    create: { submission: { identityId: identity.id, emailId } }
-  } as any);
-  const failure = (submitted as any).notCreated?.submission;
+  const submittedResponse = await call(account, password, [['EmailSubmission/set', {
+    accountId: account.accountId, create: { submission: { identityId: identity.id, emailId } }
+  }, 'submit']]);
+  const submitted = submittedResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'EmailSubmission/set')?.[1];
+  const failure = submitted?.notCreated?.submission;
   if (failure) throw new Error(failure.description || failure.type || '发送失败');
 }
 
@@ -249,9 +269,9 @@ async function managementCall(account: MailAccount, password: string, methodCall
     { accountId, ...args },
     callId
   ]);
-  const response = await request(account.apiUrl, {
+  const response = await authenticatedRequest(account, password, account.apiUrl, {
     method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: authorization(account.username, password) },
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ using: ['urn:ietf:params:jmap:core', 'urn:stalwart:jmap'], methodCalls: callsWithAccountId })
   });
   const json = await response.json();

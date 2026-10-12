@@ -1,6 +1,7 @@
 import { FlashList } from '@shopify/flash-list';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
+import { MotionView } from '@/components/Motion';
 import type { MailItem } from '@/types';
 
 type Props = {
@@ -35,29 +36,31 @@ export function MailList({ data, refreshing, onRefresh, emptyTitle, emptyDetail,
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.onSurfaceVariant} />}
       ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: theme.colors.outlineVariant }]} />}
       ListEmptyComponent={refreshing ? <ActivityIndicator style={styles.loading} /> : (
-        <View style={styles.empty}>
+        <MotionView style={styles.empty} distance={6} duration={220}>
           <Text variant="titleMedium">{error ? '无法载入邮件' : emptyTitle}</Text>
           <Text variant="bodyMedium" style={[styles.emptyDetail, { color: theme.colors.onSurfaceVariant }]}>{error || emptyDetail}</Text>
-        </View>
+        </MotionView>
       )}
-      renderItem={({ item }) => {
+      renderItem={({ item, index }) => {
         const sender = item.from?.[0]?.name || item.from?.[0]?.email || '未知发件人';
         const initial = sender.trim().slice(0, 1).toUpperCase() || '·';
         const unread = !item.keywords?.['$seen'];
         return (
-          <Pressable onPress={() => onOpen?.(item)} style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.colors.surfaceVariant }]}>
-            <View style={[styles.avatar, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>{initial}</Text>
-            </View>
-            <View style={styles.body}>
-              <View style={styles.heading}>
-                <Text variant="titleSmall" numberOfLines={1} style={[styles.sender, unread && styles.unread]}>{sender}</Text>
-                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>{displayTime(item.receivedAt)}</Text>
+          <MotionView distance={6} duration={220} delay={Math.min(index * 28, 168)}>
+            <Pressable onPress={() => onOpen?.(item)} style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.colors.surfaceVariant }]}>
+              <View style={[styles.avatar, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>{initial}</Text>
               </View>
-              <Text variant="bodyMedium" numberOfLines={1} style={unread && styles.unread}>{item.subject || '（无主题）'}</Text>
-              <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>{item.preview || ' '}</Text>
-            </View>
-          </Pressable>
+              <View style={styles.body}>
+                <View style={styles.heading}>
+                  <Text variant="titleSmall" numberOfLines={1} style={[styles.sender, unread && styles.unread]}>{sender}</Text>
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>{displayTime(item.receivedAt)}</Text>
+                </View>
+                <Text variant="bodyMedium" numberOfLines={1} style={unread && styles.unread}>{item.subject || '（无主题）'}</Text>
+                <Text variant="bodySmall" numberOfLines={1} style={{ color: theme.colors.onSurfaceVariant }}>{item.preview || ' '}</Text>
+              </View>
+            </Pressable>
+          </MotionView>
         );
       }}
     />

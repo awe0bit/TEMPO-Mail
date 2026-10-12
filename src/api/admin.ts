@@ -1,17 +1,14 @@
 import type { MailAccount } from '@/types';
 import type { AdminSchema } from '@/admin/schema';
 import { resolveAdminList, resolveAdminObject } from '@/admin/schema';
-
-const authorization = (username: string, password: string) => `Basic ${globalThis.btoa(`${username}:${password}`)}`;
+import { authenticatedRequest } from '@/api/jmap';
 
 async function fetchJson(account: MailAccount, password: string, path: string, init: RequestInit = {}) {
   const origin = new URL(account.sessionUrl).origin;
-  const response = await fetch(`${origin}${path}`, {
+  const response = await authenticatedRequest(account, password, `${origin}${path}`, {
     ...init,
-    redirect: 'follow',
-    headers: { Accept: 'application/json', Authorization: authorization(account.username, password), ...init.headers }
+    headers: { Accept: 'application/json', ...init.headers }
   });
-  if (!response.ok) throw new Error(`服务器请求失败（HTTP ${response.status}）`);
   return response.json();
 }
 
@@ -20,11 +17,10 @@ export async function fetchAdminSchema(account: MailAccount, password: string): 
 }
 
 async function adminCall(account: MailAccount, password: string, methodCalls: unknown[]) {
-  const response = await fetch(account.apiUrl, {
+  const response = await authenticatedRequest(account, password, account.apiUrl, {
     method: 'POST',
     headers: {
-      Accept: 'application/json', 'Content-Type': 'application/json',
-      Authorization: authorization(account.username, password)
+      Accept: 'application/json', 'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       using: [
@@ -36,7 +32,6 @@ async function adminCall(account: MailAccount, password: string, methodCalls: un
       methodCalls
     })
   });
-  if (!response.ok) throw new Error(`管理请求失败（HTTP ${response.status}）`);
   const json = await response.json();
   const error = json.methodResponses?.find((entry: unknown[]) => entry[0] === 'error');
   if (error) {

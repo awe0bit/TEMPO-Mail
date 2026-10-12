@@ -8,7 +8,7 @@ export default function TabLayout() {
     <Tabs
       backBehavior="history"
       detachInactiveScreens={false}
-      screenOptions={{ animation: 'none', freezeOnBlur: false, headerShown: false }}
+      screenOptions={{ animation: 'fade', freezeOnBlur: false, headerShown: false }}
       tabBar={(props) => <TempoTabBar {...props} admin={admin} />}
     >
       <Tabs.Screen name="inbox" />

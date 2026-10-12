@@ -1,11 +1,12 @@
 import { router, Stack } from 'expo-router';
-import { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { Text, TextInput, useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { DEFAULT_MAIL_DOMAIN, DEFAULT_MAIL_SERVER, DEFAULT_REGISTRATION_URL } from '@/config';
 import { registerDefaultAccount } from '@/api/registration';
 import { NativeGlassButton, NativeGlassIconButton } from '@/components/NativeControls';
+import { MotionView } from '@/components/Motion';
 import { useAppState } from '@/state/app-state';
 
 type Mode = 'welcome' | 'register' | 'login' | 'custom';
@@ -22,6 +23,20 @@ export default function Setup() {
   const [inviteCode, setInviteCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const actionLocked = useRef(false);
+
+  const beginAction = () => {
+    if (actionLocked.current) return false;
+    actionLocked.current = true;
+    Keyboard.dismiss();
+    setBusy(true);
+    setError('');
+    return true;
+  };
+  const finishAction = () => {
+    actionLocked.current = false;
+    setBusy(false);
+  };
 
   const changeMode = (next: Mode) => {
     setError('');
@@ -31,21 +46,19 @@ export default function Setup() {
     setMode(next);
   };
   const submit = async () => {
-    setBusy(true);
-    setError('');
+    if (!beginAction()) return;
     try {
-      await connect(mode === 'login' ? DEFAULT_MAIL_SERVER : server, email, mode === 'login' ? '' : username, password);
+      await connect(mode === 'login' ? DEFAULT_MAIL_SERVER : server.trim(), email.trim(), mode === 'login' ? '' : username.trim(), password);
       router.replace('/(tabs)/inbox');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '连接失败');
     } finally {
-      setBusy(false);
+      finishAction();
     }
   };
   const register = async () => {
     if (password !== confirmPassword) return setError('两次输入的密码不一致');
-    setBusy(true);
-    setError('');
+    if (!beginAction()) return;
     try {
       const registeredEmail = await registerDefaultAccount(email, password, inviteCode);
       await connect(DEFAULT_MAIL_SERVER, registeredEmail, '', password);
@@ -53,7 +66,7 @@ export default function Setup() {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '注册失败');
     } finally {
-      setBusy(false);
+      finishAction();
     }
   };
   const preview = () => {
@@ -65,32 +78,34 @@ export default function Setup() {
     return (
       <SafeAreaView style={[styles.welcome, { backgroundColor: theme.colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <View style={styles.hero}>
-          <Image source={require('../src/assets/tempo-mark.png')} resizeMode="contain" style={[styles.heroSymbol, { tintColor: theme.colors.onBackground }]} />
-          <View style={styles.brandBlock}>
-            <Text variant="displaySmall" style={styles.brand}>TEMPO Mail</Text>
-            <Text variant="titleMedium" style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>邮件与服务器管理，一个客户端完成。</Text>
-            <View style={[styles.serverBadge, { backgroundColor: theme.colors.surface }]}>
-              <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>默认服务</Text>
-              <Text variant="labelLarge">@{DEFAULT_MAIL_DOMAIN}</Text>
+        <MotionView style={styles.motionFill} distance={8}>
+          <View style={styles.hero}>
+            <Image source={require('../src/assets/tempo-mark.png')} resizeMode="contain" style={[styles.heroSymbol, { tintColor: theme.colors.onBackground }]} />
+            <View style={styles.brandBlock}>
+              <Text variant="displaySmall" style={styles.brand}>TEMPO Mail</Text>
+              <Text variant="titleMedium" style={[styles.tagline, { color: theme.colors.onSurfaceVariant }]}>邮件与服务器管理，一个客户端完成。</Text>
+              <View style={[styles.serverBadge, { backgroundColor: theme.colors.surface }]}>
+                <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>默认服务</Text>
+                <Text variant="labelLarge">@{DEFAULT_MAIL_DOMAIN}</Text>
+              </View>
             </View>
           </View>
-        </View>
-        <View style={styles.welcomeActions}>
-          <Text variant="titleMedium" style={styles.actionTitle}>开始使用</Text>
-          <NativeGlassButton label="登录邮箱" systemImage="envelope.fill" prominent wide onPress={() => changeMode('login')} />
-          <NativeGlassButton label="注册新邮箱" systemImage="person.badge.plus" wide isDisabled={!DEFAULT_REGISTRATION_URL} onPress={() => changeMode('register')} />
-          <Pressable accessibilityRole="button" hitSlop={10} onPress={() => changeMode('custom')} style={[styles.serverAction, { backgroundColor: theme.colors.surface }]}>
-            <View>
-              <Text variant="labelLarge">连接自定义服务器</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>其他 Stalwart / JMAP 服务</Text>
-            </View>
-            <Text variant="titleLarge" style={{ color: theme.colors.onSurfaceVariant }}>›</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" hitSlop={12} onPress={preview} style={styles.previewAction}>
-            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>暂不登录，预览完整界面</Text>
-          </Pressable>
-        </View>
+          <View style={styles.welcomeActions}>
+            <Text variant="titleMedium" style={styles.actionTitle}>开始使用</Text>
+            <NativeGlassButton label="登录邮箱" systemImage="envelope.fill" prominent wide onPress={() => changeMode('login')} />
+            <NativeGlassButton label="注册新邮箱" systemImage="person.badge.plus" wide isDisabled={!DEFAULT_REGISTRATION_URL} onPress={() => changeMode('register')} />
+            <Pressable accessibilityRole="button" hitSlop={10} onPress={() => changeMode('custom')} style={({ pressed }) => [styles.serverAction, { backgroundColor: theme.colors.surface, opacity: pressed ? 0.72 : 1 }]}>
+              <View>
+                <Text variant="labelLarge">连接自定义服务器</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>其他 Stalwart / JMAP 服务</Text>
+              </View>
+              <Text variant="titleLarge" style={{ color: theme.colors.onSurfaceVariant }}>›</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" hitSlop={12} onPress={preview} style={({ pressed }) => [styles.previewAction, { opacity: pressed ? 0.55 : 1 }]}>
+              <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>暂不登录，预览完整界面</Text>
+            </Pressable>
+          </View>
+        </MotionView>
       </SafeAreaView>
     );
   }
@@ -101,12 +116,13 @@ export default function Setup() {
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-      <View style={styles.formHeader}>
-        <NativeGlassIconButton label="返回" systemImage="chevron.left" size={44} onPress={() => changeMode('welcome')} />
-        <Text variant="titleMedium" style={styles.formHeaderTitle}>{screenTitle}</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
+      <MotionView style={styles.motionFill} distance={8}>
+        <View style={styles.formHeader}>
+          <NativeGlassIconButton label="返回" systemImage="chevron.left" size={44} onPress={() => changeMode('welcome')} />
+          <Text variant="titleMedium" style={styles.formHeaderTitle}>{screenTitle}</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
           <View style={styles.heading}>
             <Text variant="labelLarge" style={{ color: theme.colors.onSurfaceVariant }}>TEMPO MAIL</Text>
@@ -126,7 +142,7 @@ export default function Setup() {
               <TextInput style={styles.input} contentStyle={styles.inputContent} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="登录用户名（可留空）" value={username} onChangeText={setUsername} autoCapitalize="none" />
             </>}
             <View style={[styles.separator, { backgroundColor: theme.colors.outlineVariant }]} />
-            <TextInput style={styles.input} contentStyle={styles.inputContent} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="密码" value={password} onChangeText={setPassword} secureTextEntry />
+            <TextInput style={styles.input} contentStyle={styles.inputContent} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="密码" value={password} onChangeText={setPassword} secureTextEntry returnKeyType={registering ? 'next' : 'go'} onSubmitEditing={!registering && !busy && email && password ? () => void submit() : undefined} />
             {registering && <>
               <View style={[styles.separator, { backgroundColor: theme.colors.outlineVariant }]} />
               <TextInput style={styles.input} contentStyle={styles.inputContent} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="再次输入密码" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
@@ -134,7 +150,7 @@ export default function Setup() {
               <TextInput style={styles.input} contentStyle={styles.inputContent} mode="flat" underlineColor="transparent" activeUnderlineColor="transparent" label="邀请码" value={inviteCode} onChangeText={setInviteCode} autoCapitalize="characters" />
             </>}
           </View>
-          {Boolean(error) && <View style={[styles.errorNotice, { backgroundColor: theme.colors.errorContainer }]}><Text variant="bodyMedium" style={{ color: theme.colors.onErrorContainer }}>{error}</Text></View>}
+          {Boolean(error) && <MotionView distance={5} duration={180} style={[styles.errorNotice, { backgroundColor: theme.colors.errorContainer }]}><Text variant="bodyMedium" style={{ color: theme.colors.onErrorContainer }}>{error}</Text></MotionView>}
           <View style={styles.actions}>
             <NativeGlassButton label={busy ? (registering ? '正在创建…' : '正在登录…') : (registering ? '创建并登录' : '登录')} systemImage="arrow.right" prominent wide isDisabled={(custom && !server) || !email || !password || (registering && (!confirmPassword || !inviteCode)) || busy} onPress={() => void (registering ? register() : submit())} />
           </View>
@@ -142,13 +158,15 @@ export default function Setup() {
             <Text variant="labelLarge" style={{ color: theme.colors.onBackground }}>改用自定义服务器</Text>
           </Pressable>}
         </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </MotionView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   welcome: { flex: 1, overflow: 'hidden', paddingHorizontal: 24 },
+  motionFill: { flex: 1 },
   hero: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 34, paddingBottom: 22 },
   heroSymbol: { width: 92, height: 92 },
   brandBlock: { alignItems: 'center', gap: 8, marginTop: 22 },

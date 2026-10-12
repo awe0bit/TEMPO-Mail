@@ -4,6 +4,7 @@ import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import { fetchAdminOverview, type AdminMetric, type AdminOverview } from '@/api/admin';
 import { AccountMenu } from '@/components/AccountMenu';
+import { MotionView } from '@/components/Motion';
 import { SettingsDivider, SettingsGroup, SettingsRow, SettingsSectionTitle } from '@/components/SettingsList';
 import { useAppState } from '@/state/app-state';
 
@@ -53,11 +54,11 @@ export default function OverviewScreen() {
         </View>
 
         {overview.isLoading ? <ActivityIndicator style={styles.loading} /> : overview.error ? (
-          <View style={[styles.notice, { backgroundColor: theme.colors.surface }]}>
+          <MotionView distance={7} style={[styles.notice, { backgroundColor: theme.colors.surface }]}>
             <Text variant="titleMedium">无法读取服务器概览</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{overview.error instanceof Error ? overview.error.message : '未知错误'}</Text>
-          </View>
-        ) : data ? <>
+          </MotionView>
+        ) : data ? <MotionView distance={7}>
           <SettingsSectionTitle>当前状态</SettingsSectionTitle>
           <View style={[styles.metricGroup, { backgroundColor: theme.colors.surface }]}>
             <Metric value={data.accounts} label="邮箱账户" />
@@ -88,7 +89,7 @@ export default function OverviewScreen() {
             <SettingsDivider />
             <SettingsRow title="已封禁 IP" description={`${data.blockedIps} 条安全规则`} value={String(data.blockedIps)} symbol="hand.raised.fill" tone="red" onPress={() => router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: 'x:BlockedIp', title: '已封禁 IP' } } as never)} />
           </SettingsGroup>
-        </> : null}
+        </MotionView> : null}
       </ScrollView>
     </View>
   );

@@ -58,10 +58,10 @@ export default function RootLayout() {
         <PaperProvider theme={paperTheme}>
           <AutomaticUpdates />
           <AppStateProvider>
-            <Stack screenOptions={{ headerShown: false, headerShadowVisible: false, contentStyle: { backgroundColor: paperTheme.colors.background } }}>
-              <Stack.Screen name="setup" options={{ headerShown: true }} />
-              <Stack.Screen name="compose" options={{ headerShown: true, presentation: 'modal' }} />
-              <Stack.Screen name="mail/[id]" options={{ headerShown: true }} />
+            <Stack screenOptions={{ animation: 'simple_push', animationDuration: 280, headerShown: false, headerShadowVisible: false, contentStyle: { backgroundColor: paperTheme.colors.background } }}>
+              <Stack.Screen name="setup" options={{ animation: 'fade', animationDuration: 220, headerShown: true }} />
+              <Stack.Screen name="compose" options={{ animation: 'slide_from_bottom', headerShown: true, presentation: 'modal' }} />
+              <Stack.Screen name="mail/[id]" options={{ animation: 'simple_push', headerShown: true }} />
             </Stack>
           </AppStateProvider>
         </PaperProvider>

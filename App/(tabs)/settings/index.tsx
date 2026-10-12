@@ -7,6 +7,7 @@ import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import { fetchAdminSchema } from '@/api/admin';
 import { adminZh, flattenAdminItems, hasAdminObjectPermission, type AdminLayout, type AdminSchema } from '@/admin/schema';
 import { AccountMenu } from '@/components/AccountMenu';
+import { MotionView } from '@/components/Motion';
 import {
   SettingsDivider, SettingsGroup, SettingsRow, SettingsSectionTitle,
   type SettingsSymbol, type SettingsTone
@@ -57,12 +58,12 @@ export default function SettingsScreen() {
         <SettingsRow title={selected?.email ?? '未登录'} description={preview ? '本地完整演示，不连接服务器' : host} value={admin ? '管理员' : '邮箱账户'} symbol="person.crop.circle.fill" tone="gray" />
       </SettingsGroup>
 
-      {preview ? <PreviewSettings openResource={openResource} /> : schema.isLoading ? <ActivityIndicator style={styles.loading} /> : schema.error ? (
-        <View style={[styles.notice, { backgroundColor: theme.colors.surface }]}>
+      {preview ? <MotionView distance={7}><PreviewSettings openResource={openResource} /></MotionView> : schema.isLoading ? <ActivityIndicator style={styles.loading} /> : schema.error ? (
+        <MotionView distance={7} style={[styles.notice, { backgroundColor: theme.colors.surface }]}>
           <Text variant="titleMedium">无法读取服务器功能</Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{schema.error instanceof Error ? schema.error.message : '服务器设置加载失败'}</Text>
-        </View>
-      ) : schema.data ? <>
+        </MotionView>
+      ) : schema.data ? <MotionView distance={7}>
         {admin && <SchemaLayout
           title="邮件服务管理"
           layoutName="Management"
@@ -84,7 +85,7 @@ export default function SettingsScreen() {
           access={access}
           onOpen={openEntry}
         />
-      </> : null}
+      </MotionView> : null}
 
       <SettingsSectionTitle>客户端</SettingsSectionTitle>
       <SettingsGroup>

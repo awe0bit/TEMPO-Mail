@@ -24,9 +24,9 @@ export function TempoTabBar({ state, navigation, insets, admin }: BottomTabBarPr
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const { width } = useWindowDimensions();
   const tabs = admin ? mailboxTabs : mailboxTabs.filter((tab) => tab.name !== 'overview');
-  const horizontalInset = 16;
-  const searchSize = 64;
-  const gap = 12;
+  const horizontalInset = 20;
+  const searchSize = 60;
+  const gap = 10;
   const groupWidth = width - horizontalInset * 2 - searchSize - gap;
   const itemWidth = groupWidth / tabs.length;
 
@@ -42,13 +42,13 @@ export function TempoTabBar({ state, navigation, insets, admin }: BottomTabBarPr
   const bottom = Math.max(insets.bottom, 8);
 
   return (
-    <View pointerEvents="box-none" style={[styles.container, { height: 72 + bottom, paddingBottom: bottom }]}>
-      <Host colorScheme={scheme} style={{ height: 64, width: groupWidth }}>
+    <View pointerEvents="box-none" style={[styles.container, { height: 68 + bottom, paddingBottom: bottom, paddingHorizontal: horizontalInset, gap }]}>
+      <Host colorScheme={scheme} ignoreSafeArea="all" style={{ height: 60, width: groupWidth }}>
         <GlassEffectContainer spacing={8}>
           <HStack
             spacing={0}
             modifiers={[
-              frame({ width: groupWidth, height: 64 }),
+              frame({ width: groupWidth, height: 60 }),
               glassEffect({ glass: { variant: 'regular', interactive: true }, shape: 'capsule' })
             ]}
           >
@@ -59,12 +59,12 @@ export function TempoTabBar({ state, navigation, insets, admin }: BottomTabBarPr
                   key={tab.name}
                   onPress={() => open(tab.name)}
                   modifiers={[
-                    frame({ width: itemWidth, height: 58 }),
+                    frame({ width: itemWidth, height: 54 }),
                     buttonBorderShape('capsule'),
                     buttonStyle(selected ? 'glass' : 'plain')
                   ]}
                 >
-                  <VStack alignment="center" spacing={2} modifiers={[frame({ width: itemWidth, height: 52 })]}>
+                  <VStack alignment="center" spacing={2} modifiers={[frame({ width: itemWidth, height: 50 })]}>
                     <Image systemName={tab.symbol} size={22} color={selected ? theme.colors.onBackground : theme.colors.onSurfaceVariant} />
                     <Text modifiers={[
                       font({ size: 11, weight: 'medium' }),
@@ -78,7 +78,7 @@ export function TempoTabBar({ state, navigation, insets, admin }: BottomTabBarPr
         </GlassEffectContainer>
       </Host>
 
-      <Host colorScheme={scheme} matchContents style={{ height: searchSize, width: searchSize }}>
+      <Host colorScheme={scheme} ignoreSafeArea="all" matchContents style={{ height: searchSize, width: searchSize }}>
         <Button
           onPress={() => open('search')}
           modifiers={[
@@ -99,8 +99,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     backgroundColor: 'transparent',
     flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'center',
-    paddingHorizontal: 16
+    justifyContent: 'center'
   }
 });
