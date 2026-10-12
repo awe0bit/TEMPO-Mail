@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
-import { PropsWithChildren, useCallback, useEffect, useState } from 'react';
+import * as SplashScreen from 'expo-splash-screen';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { create } from 'zustand';
 import { adminAccess, discover, isAdministrator } from '@/api/jmap';
-import { LaunchScreen } from '@/components/LaunchScreen';
 import type { AdminAccess, MailAccount } from '@/types';
 import { previewAccess, previewAccount } from '@/preview/fixtures';
 
@@ -50,8 +50,14 @@ export const useAppState = create<Store>((set, get) => ({
   admin: false,
   preview: false,
   async initialize() {
-    const raw = await AsyncStorage.getItem(storageKey);
-    const saved: SavedState = raw ? JSON.parse(raw) : { accounts: [], selectedId: null, access: null };
+    let saved: SavedState = { accounts: [], selectedId: null, access: null };
+    try {
+      const raw = await AsyncStorage.getItem(storageKey);
+      if (raw) saved = JSON.parse(raw);
+    } catch {
+      // A damaged local cache must never leave the native launch screen stuck.
+      await AsyncStorage.removeItem(storageKey).catch(() => undefined);
+    }
     const selected = derive(saved.accounts, saved.selectedId, null).selected;
     const preview = selected?.id === previewAccount.id;
     const cachedAccess = preview ? previewAccess : saved.access ?? null;
@@ -107,28 +113,19 @@ export const useAppState = create<Store>((set, get) => ({
 export function AppStateProvider({ children }: PropsWithChildren) {
   const initialize = useAppState((state) => state.initialize);
   const ready = useAppState((state) => state.ready);
-  const [minimumElapsed, setMinimumElapsed] = useState(false);
-  const [layoutSettled, setLayoutSettled] = useState(false);
-  const [launchVisible, setLaunchVisible] = useState(true);
+  const [contentLaidOut, setContentLaidOut] = useState(false);
   useEffect(() => { void initialize(); }, [initialize]);
   useEffect(() => {
-    const timer = setTimeout(() => setMinimumElapsed(true), 700);
+    if (!ready || !contentLaidOut) return;
+    // Keep the single native splash visible through the first complete layout
+    // pass, then use its built-in fade. There is no second React splash page.
+    const timer = setTimeout(() => { void SplashScreen.hideAsync(); }, 120);
     return () => clearTimeout(timer);
-  }, []);
-  useEffect(() => {
-    if (!ready) return;
-    const timer = setTimeout(() => setLayoutSettled(true), 180);
-    return () => clearTimeout(timer);
-  }, [ready]);
-  const finishLaunch = useCallback(() => setLaunchVisible(false), []);
+  }, [contentLaidOut, ready]);
 
-  // The complete navigation tree mounts behind the launch screen only after
-  // the saved account and cached capabilities are known. The short overlap
-  // gives UIKit one layout pass before the user sees the native tab bar.
   return (
     <View style={styles.appRoot}>
-      {ready ? children : null}
-      {launchVisible ? <LaunchScreen prepared={ready && minimumElapsed && layoutSettled} onFinished={finishLaunch} /> : null}
+      {ready ? <View style={styles.appRoot} onLayout={() => setContentLaidOut(true)}>{children}</View> : null}
     </View>
   );
 }

@@ -5,50 +5,107 @@ import { FetchTransport } from 'jmap-client-ts/lib/utils/fetch-transport';
 const authorization = (username: string, password: string) =>
   `Basic ${globalThis.btoa(`${username}:${password}`)}`;
 
-async function request(url: string, init: RequestInit, timeout = 15000) {
+async function fetchWithTimeout(url: string, init: RequestInit, timeout = 15000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    if (!response.ok) throw new Error(`服务器请求失败（HTTP ${response.status}）`);
-    return response;
+    return await fetch(url, { ...init, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
 }
 
-export async function discover(server: string, email: string, username: string, password: string): Promise<MailAccount> {
-  const root = server.trim().replace(/\/$/, '');
-  const discoveryUrl = root.includes('/.well-known/jmap') ? root : `${root}/.well-known/jmap`;
-  const login = username.trim() || email.trim();
-  let response = await request(discoveryUrl, {
-    headers: { Accept: 'application/json', Authorization: authorization(login, password) }
-  });
-  let session = await response.json();
-  let accountId = session.primaryAccounts?.['urn:ietf:params:jmap:mail'];
+async function request(url: string, init: RequestInit, timeout = 15000) {
+  const response = await fetchWithTimeout(url, init, timeout);
+  if (!response.ok) throw new Error(`服务器请求失败（HTTP ${response.status}）`);
+  return response;
+}
 
-  // React Native may drop Authorization while following the well-known 307.
-  // Repeat the request against the resolved session URL so credentials are
-  // attached to the endpoint used by all later JMAP calls as well.
-  const sessionUrl = response.url || discoveryUrl;
-  if (!accountId && sessionUrl !== discoveryUrl) {
-    response = await request(sessionUrl, {
-      headers: { Accept: 'application/json', Authorization: authorization(login, password) }
-    });
-    session = await response.json();
-    accountId = session.primaryAccounts?.['urn:ietf:params:jmap:mail'];
+const MAIL_CAPABILITY = 'urn:ietf:params:jmap:mail';
+
+function localAccountId() {
+  // Hermes does not expose crypto.randomUUID in every installed native build.
+  // This ID only keys local SecureStore entries; it is not a security token.
+  return `account-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function normalizeServer(server: string) {
+  const value = server.trim();
+  if (!value) throw new Error('请填写服务器地址');
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function mailAccountId(session: any) {
+  const primary = session.primaryAccounts?.[MAIL_CAPABILITY];
+  if (primary) return primary as string;
+  return Object.entries(session.accounts ?? {}).find(([, value]: [string, any]) =>
+    Boolean(value?.accountCapabilities?.[MAIL_CAPABILITY])
+  )?.[0];
+}
+
+export async function discover(server: string, email: string, username: string, password: string): Promise<MailAccount> {
+  let root: string;
+  try {
+    root = new URL(normalizeServer(server)).toString().replace(/\/$/, '');
+  } catch {
+    throw new Error('服务器地址格式不正确');
   }
-  if (!accountId || !session.apiUrl) throw new Error('服务器没有可用的 JMAP 邮件账户');
-  return {
-    id: globalThis.crypto.randomUUID(),
-    name: email.split('@')[0],
-    email: email.trim(),
-    username: login,
-    sessionUrl,
-    apiUrl: session.apiUrl,
-    accountId,
-    managementAccountId: session.primaryAccounts?.['urn:stalwart:jmap'] ?? session.primaryAccounts?.['urn:ietf:params:jmap:core'] ?? accountId
-  };
+
+  const parsed = new URL(root);
+  const discoveryUrl = parsed.pathname.includes('/.well-known/jmap') ? root : `${root}/.well-known/jmap`;
+  const endpoints = [...new Set([discoveryUrl, `${parsed.origin}/jmap/session`])];
+  const localPart = email.trim().split('@')[0];
+  const logins = [...new Set([username.trim(), email.trim(), localPart].filter(Boolean))];
+  let sawAuthenticationFailure = false;
+  let sawSessionWithoutMail = false;
+  let lastError: unknown = null;
+
+  // NSURLSession can remove Authorization while it follows the well-known
+  // redirect. Trying the resolved Stalwart endpoint explicitly makes the
+  // second request carry credentials on iOS. Full addresses and local account
+  // names are both valid Stalwart login forms, so try both without making the
+  // user understand the distinction.
+  for (const login of logins) {
+    for (const endpoint of endpoints) {
+      try {
+        const response = await fetchWithTimeout(endpoint, {
+          headers: { Accept: 'application/json', Authorization: authorization(login, password) }
+        });
+        if (response.status === 401 || response.status === 403) {
+          sawAuthenticationFailure = true;
+          continue;
+        }
+        if (!response.ok) {
+          lastError = new Error(`服务器请求失败（HTTP ${response.status}）`);
+          continue;
+        }
+        const session = await response.json();
+        const accountId = mailAccountId(session);
+        if (!accountId || !session.apiUrl) {
+          sawSessionWithoutMail = true;
+          continue;
+        }
+        const sessionUrl = response.url || endpoint;
+        return {
+          id: localAccountId(),
+          name: email.split('@')[0],
+          email: email.trim(),
+          username: login,
+          sessionUrl,
+          apiUrl: new URL(session.apiUrl, sessionUrl).toString(),
+          accountId,
+          managementAccountId: session.primaryAccounts?.['urn:stalwart:jmap'] ?? session.primaryAccounts?.['urn:ietf:params:jmap:core'] ?? accountId
+        };
+      } catch (error) {
+        lastError = error;
+      }
+    }
+  }
+
+  if (sawSessionWithoutMail) throw new Error('该账户没有可用的 JMAP 邮箱');
+  if (sawAuthenticationFailure) throw new Error('邮箱地址或密码错误');
+  if (lastError instanceof Error && lastError.message.startsWith('服务器请求失败')) throw lastError;
+  throw new Error('无法连接邮件服务器，请检查网络后重试');
 }
 
 export async function adminAccess(account: MailAccount, password: string): Promise<AdminAccess | null> {
