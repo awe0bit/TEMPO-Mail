@@ -77,11 +77,9 @@ export default function Setup() {
         <View style={styles.welcomeActions}>
           <NativeGlassButton label="注册 TEMPO 邮箱" systemImage="person.badge.plus" prominent wide isDisabled={!DEFAULT_REGISTRATION_URL} onPress={() => changeMode('register')} />
           <NativeGlassButton label="邮箱登录" systemImage="envelope" wide onPress={() => changeMode('login')} />
-          <Pressable accessibilityRole="button" hitSlop={12} onPress={() => changeMode('custom')} style={styles.textAction}>
-            <Text variant="labelLarge" style={{ color: theme.colors.onBackground }}>自定义服务器</Text>
-          </Pressable>
+          <NativeGlassButton label="自定义服务器" systemImage="server.rack" wide onPress={() => changeMode('custom')} />
           <Pressable accessibilityRole="button" hitSlop={12} onPress={preview} style={styles.previewAction}>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>不登录，预览界面</Text>
+            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>不登录，预览界面</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -139,16 +137,16 @@ export default function Setup() {
 }
 
 const styles = StyleSheet.create({
-  welcome: { flex: 1, overflow: 'hidden', paddingHorizontal: 20 },
-  hero: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 42, paddingBottom: 28 },
-  heroSymbol: { width: 120, height: 120 },
-  brandBlock: { alignItems: 'center', gap: 7, marginTop: 28 },
-  brand: { fontSize: 38, lineHeight: 45, fontWeight: '800', letterSpacing: -1.2 },
-  tagline: { fontWeight: '500' },
+  welcome: { flex: 1, overflow: 'hidden', paddingHorizontal: 24 },
+  hero: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 24, paddingBottom: 24 },
+  heroSymbol: { width: 112, height: 112 },
+  brandBlock: { alignItems: 'center', gap: 6, marginTop: 24 },
+  brand: { fontSize: 36, lineHeight: 43, fontWeight: '800', letterSpacing: -1.1 },
+  tagline: { fontWeight: '500', lineHeight: 22 },
   serverLabel: { marginTop: 6 },
-  welcomeActions: { width: '100%', alignItems: 'center', gap: 11, paddingBottom: 18 },
+  welcomeActions: { width: '100%', alignItems: 'center', gap: 12, paddingBottom: 20 },
   textAction: { minHeight: 38, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
-  previewAction: { minHeight: 34, justifyContent: 'center', alignItems: 'center' },
+  previewAction: { minHeight: 38, justifyContent: 'center', alignItems: 'center', marginTop: 2 },
   page: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 36 },
   heading: { gap: 8, marginHorizontal: 4, marginBottom: 22 },

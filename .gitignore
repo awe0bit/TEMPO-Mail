@@ -2,6 +2,7 @@
 node_modules/
 .expo/
 dist-check/
+dist/
 ios/
 .build/
 DerivedData/
