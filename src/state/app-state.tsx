@@ -104,6 +104,12 @@ export const useAppState = create<Store>((set, get) => ({
 
 export function AppStateProvider({ children }: PropsWithChildren) {
   const initialize = useAppState((state) => state.initialize);
+  const ready = useAppState((state) => state.ready);
   useEffect(() => { void initialize(); }, [initialize]);
-  return children;
+  // Do not mount Expo Router's native tab controller until the saved account
+  // and its cached administrator capability have been restored. Mounting it
+  // earlier creates a three-item bar and then inserts the overview item on the
+  // next frame, which leaves UIKit's selected icon at the wrong vertical
+  // position until the first tab change.
+  return ready ? children : null;
 }

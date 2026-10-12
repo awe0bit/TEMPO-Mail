@@ -7,6 +7,7 @@ export default function TabLayout() {
   const { admin } = useAppState();
   return (
     <NativeTabs
+      key={admin ? 'administrator-tabs' : 'mail-tabs'}
       minimizeBehavior="never"
       tintColor={theme.colors.onBackground}
       iconColor={{ default: theme.colors.onSurfaceVariant, selected: theme.colors.onBackground }}
