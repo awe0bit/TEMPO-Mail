@@ -23,12 +23,14 @@ type Store = {
 };
 
 const storageKey = 'tempo.accounts.v2';
+type SavedState = { accounts: MailAccount[]; selectedId: string | null; access?: AdminAccess | null };
+
 const derive = (accounts: MailAccount[], selectedId: string | null, access: AdminAccess | null) => ({
   selected: accounts.find((item) => item.id === selectedId) ?? accounts[0] ?? null,
   admin: isAdministrator(access)
 });
-const persist = (accounts: MailAccount[], selectedId: string | null) =>
-  AsyncStorage.setItem(storageKey, JSON.stringify({ accounts, selectedId }));
+const persist = (accounts: MailAccount[], selectedId: string | null, access: AdminAccess | null) =>
+  AsyncStorage.setItem(storageKey, JSON.stringify({ accounts, selectedId, access }));
 
 async function loadAccess(account: MailAccount | null) {
   if (!account) return null;
@@ -47,29 +49,38 @@ export const useAppState = create<Store>((set, get) => ({
   preview: false,
   async initialize() {
     const raw = await AsyncStorage.getItem(storageKey);
-    const saved = raw ? JSON.parse(raw) as { accounts: MailAccount[]; selectedId: string | null } : { accounts: [], selectedId: null };
+    const saved: SavedState = raw ? JSON.parse(raw) : { accounts: [], selectedId: null, access: null };
     const selected = derive(saved.accounts, saved.selectedId, null).selected;
+    const preview = selected?.id === previewAccount.id;
+    const cachedAccess = preview ? previewAccess : saved.access ?? null;
+
+    // Render the complete saved navigation immediately. Network validation is
+    // refreshed in the background so launch never waits for the server and the
+    // administrator tab does not get inserted after the tab bar is visible.
+    set({ ready: true, preview, accounts: saved.accounts, selectedId: saved.selectedId, access: cachedAccess, ...derive(saved.accounts, saved.selectedId, cachedAccess) });
+    if (!selected || preview) return;
     const access = await loadAccess(selected);
-    set({ ready: true, preview: selected?.id === previewAccount.id, accounts: saved.accounts, selectedId: saved.selectedId, access, ...derive(saved.accounts, saved.selectedId, access) });
+    await persist(saved.accounts, saved.selectedId, access);
+    if (get().selectedId === saved.selectedId) set({ access, ...derive(saved.accounts, saved.selectedId, access) });
   },
   async connect(server, email, username, secret) {
     const account = await discover(server, email, username, secret);
     await SecureStore.setItemAsync(`tempo.password.${account.id}`, secret);
     const accounts = [...(get().preview ? [] : get().accounts), account];
     const access = await adminAccess(account, secret);
-    await persist(accounts, account.id);
+    await persist(accounts, account.id, access);
     set({ preview: false, accounts, selectedId: account.id, access, ...derive(accounts, account.id, access) });
   },
   enterPreview() {
     const accounts = [previewAccount];
-    void persist(accounts, previewAccount.id);
+    void persist(accounts, previewAccount.id, previewAccess);
     set({ preview: true, accounts, selectedId: previewAccount.id, access: previewAccess, ...derive(accounts, previewAccount.id, previewAccess) });
   },
   async select(id) {
     const { accounts } = get();
     const selected = accounts.find((item) => item.id === id) ?? null;
     const access = await loadAccess(selected);
-    await persist(accounts, id);
+    await persist(accounts, id, access);
     set({ preview: selected?.id === previewAccount.id, selectedId: id, access, ...derive(accounts, id, access) });
   },
   async remove(id) {
@@ -78,7 +89,7 @@ export const useAppState = create<Store>((set, get) => ({
     const selectedId = get().selectedId === id ? accounts[0]?.id ?? null : get().selectedId;
     const selected = accounts.find((item) => item.id === selectedId) ?? null;
     const access = await loadAccess(selected);
-    await persist(accounts, selectedId);
+    await persist(accounts, selectedId, access);
     set({ preview: false, accounts, selectedId, access, ...derive(accounts, selectedId, access) });
   },
   async password() {

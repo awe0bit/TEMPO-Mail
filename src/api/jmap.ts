@@ -19,13 +19,25 @@ async function request(url: string, init: RequestInit, timeout = 15000) {
 
 export async function discover(server: string, email: string, username: string, password: string): Promise<MailAccount> {
   const root = server.trim().replace(/\/$/, '');
-  const sessionUrl = root.includes('/.well-known/jmap') ? root : `${root}/.well-known/jmap`;
+  const discoveryUrl = root.includes('/.well-known/jmap') ? root : `${root}/.well-known/jmap`;
   const login = username.trim() || email.trim();
-  const response = await request(sessionUrl, {
+  let response = await request(discoveryUrl, {
     headers: { Accept: 'application/json', Authorization: authorization(login, password) }
   });
-  const session = await response.json();
-  const accountId = session.primaryAccounts?.['urn:ietf:params:jmap:mail'];
+  let session = await response.json();
+  let accountId = session.primaryAccounts?.['urn:ietf:params:jmap:mail'];
+
+  // React Native may drop Authorization while following the well-known 307.
+  // Repeat the request against the resolved session URL so credentials are
+  // attached to the endpoint used by all later JMAP calls as well.
+  const sessionUrl = response.url || discoveryUrl;
+  if (!accountId && sessionUrl !== discoveryUrl) {
+    response = await request(sessionUrl, {
+      headers: { Accept: 'application/json', Authorization: authorization(login, password) }
+    });
+    session = await response.json();
+    accountId = session.primaryAccounts?.['urn:ietf:params:jmap:mail'];
+  }
   if (!accountId || !session.apiUrl) throw new Error('服务器没有可用的 JMAP 邮件账户');
   return {
     id: globalThis.crypto.randomUUID(),

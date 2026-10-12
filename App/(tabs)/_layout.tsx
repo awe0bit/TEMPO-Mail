@@ -7,7 +7,7 @@ export default function TabLayout() {
   const { admin } = useAppState();
   return (
     <NativeTabs
-      minimizeBehavior="onScrollDown"
+      minimizeBehavior="never"
       tintColor={theme.colors.onBackground}
       iconColor={{ default: theme.colors.onSurfaceVariant, selected: theme.colors.onBackground }}
       labelStyle={{ default: { color: theme.colors.onSurfaceVariant, fontSize: 11 }, selected: { color: theme.colors.onBackground, fontSize: 11, fontWeight: '600' } }}
