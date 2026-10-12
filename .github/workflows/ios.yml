@@ -65,12 +65,12 @@ jobs:
           test -x "$APP_PATH/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP_PATH/Info.plist")"
           mkdir -p build/Payload
           ditto "$APP_PATH" "build/Payload/$(basename "$APP_PATH")"
-          ditto -c -k --sequesterRsrc --keepParent build/Payload build/TEMPOMail-native-1-unsigned.ipa
-          shasum -a 256 build/TEMPOMail-native-1-unsigned.ipa > build/TEMPOMail-native-1-unsigned.ipa.sha256
+          ditto -c -k --sequesterRsrc --keepParent build/Payload build/TEMPOMail-native-2-unsigned.ipa
+          shasum -a 256 build/TEMPOMail-native-2-unsigned.ipa > build/TEMPOMail-native-2-unsigned.ipa.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: TEMPOMail-native-1-${{ github.run_number }}
+          name: TEMPOMail-native-2-${{ github.run_number }}
           path: |
-            build/TEMPOMail-native-1-unsigned.ipa
-            build/TEMPOMail-native-1-unsigned.ipa.sha256
+            build/TEMPOMail-native-2-unsigned.ipa
+            build/TEMPOMail-native-2-unsigned.ipa.sha256
           retention-days: 14

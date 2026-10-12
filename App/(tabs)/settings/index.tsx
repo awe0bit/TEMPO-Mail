@@ -90,7 +90,7 @@ export default function SettingsScreen() {
       <SettingsGroup>
         <SettingsRow title="邮件协议" value="JMAP" symbol="network" tone="blue" />
         <SettingsDivider />
-        <SettingsRow title="原生兼容版本" value={String(Updates.runtimeVersion || 'native-1')} symbol="arrow.triangle.2.circlepath" tone="green" />
+        <SettingsRow title="原生兼容版本" value={String(Updates.runtimeVersion || 'native-2')} symbol="arrow.triangle.2.circlepath" tone="green" />
         <SettingsDivider />
         <SettingsRow title="App 版本" value={Constants.expoConfig?.version || '—'} symbol="info.circle.fill" tone="gray" />
       </SettingsGroup>

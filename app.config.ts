@@ -12,9 +12,10 @@ const config: ExpoConfig = {
   scheme: 'tempomail',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
-  runtimeVersion: 'native-1',
+  runtimeVersion: 'native-2',
   ios: {
     bundleIdentifier: 'one.darker.tempomail',
+    buildNumber: '2',
     deploymentTarget: '26.0',
     supportsTablet: true,
     icon: {
@@ -26,7 +27,20 @@ const config: ExpoConfig = {
       NSLocalNetworkUsageDescription: '连接你配置的自托管邮件服务器'
     }
   },
-  plugins: [['expo-router', { root: './App' }], 'expo-secure-store', 'expo-updates'],
+  plugins: [
+    ['expo-router', { root: './App' }],
+    'expo-secure-store',
+    'expo-updates',
+    ['expo-splash-screen', {
+      backgroundColor: '#F7F7F9',
+      image: './App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png',
+      imageWidth: 176,
+      dark: {
+        backgroundColor: '#101012',
+        image: './App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png'
+      }
+    }]
+  ],
   updates: {
     url: `https://u.expo.dev/${projectId}`,
     checkAutomatically: 'ON_LOAD',

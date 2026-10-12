@@ -6,7 +6,7 @@ TEMPO Mail 是面向 Stalwart 自托管服务的 iOS 邮件客户端与移动管
 
 - TypeScript/React Native：账户流程、邮件内容、管理页、设置和业务状态，可通过 EAS Update OTA 更新。
 - iOS 原生界面：Expo Router Native Tabs、原生 Stack 搜索、`@expo/ui` 的 Menu/Button/Picker。iOS 26 由系统绘制 Liquid Glass。
-- `runtimeVersion` 固定为独立的 `native-1`，不再绑定 App 版本号或 IPA build number。
+- `runtimeVersion` 固定为独立的原生兼容版本（当前为 `native-2`），不再绑定 App 版本号或 IPA build number。
 - 只有 Swift、权限、Expo 原生依赖或其他原生兼容面变化时才升级 `runtimeVersion` 并重新发 IPA；纯 TypeScript 更新始终复用 `production` OTA 通道。
 
 ## 产品行为
@@ -34,7 +34,7 @@ npx expo prebuild --platform ios --clean
 
 ## 自动发布
 
-- `Build native iOS runtime`：仅在原生兼容面发生变化时生成 `native-1` 无签名 IPA，供你使用自己的证书重签。
+- `Build native iOS runtime`：仅在原生兼容面发生变化时生成当前兼容版本的无签名 IPA，供你使用自己的证书重签。
 - `Publish TypeScript OTA`：TypeScript 路由或 `src/**` 变化时先类型检查，再发布到 `production` 通道。
 - OTA 发布需要仓库 Secrets：`EXPO_TOKEN` 与 `EXPO_PROJECT_ID`。未配置时工作流仍会完成类型检查并明确跳过发布。
 

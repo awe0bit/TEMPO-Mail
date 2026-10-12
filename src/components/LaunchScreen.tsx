@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Image, StyleSheet, View } from 'react-native';
+import { Animated, Easing, Image, StyleSheet, useColorScheme, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
+import * as SplashScreen from 'expo-splash-screen';
 
 type Props = {
   prepared: boolean;
@@ -9,6 +10,7 @@ type Props = {
 
 export function LaunchScreen({ prepared, onFinished }: Props) {
   const theme = useTheme();
+  const isDark = useColorScheme() === 'dark';
   const opacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(0.96)).current;
 
@@ -33,6 +35,7 @@ export function LaunchScreen({ prepared, onFinished }: Props) {
 
   return (
     <Animated.View
+      onLayout={() => { void SplashScreen.hideAsync(); }}
       pointerEvents={prepared ? 'none' : 'auto'}
       style={[styles.screen, { backgroundColor: theme.colors.background, opacity }]}
     >
@@ -41,8 +44,10 @@ export function LaunchScreen({ prepared, onFinished }: Props) {
           <Image
             accessibilityIgnoresInvertColors
             resizeMode="contain"
-            source={require('../assets/tempo-mark.png')}
-            style={[styles.mark, { tintColor: theme.colors.onBackground }]}
+            source={isDark
+              ? require('../../App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png')
+              : require('../../App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png')}
+            style={styles.mark}
           />
         </Animated.View>
         <Text variant="headlineMedium" style={styles.title}>TEMPO Mail</Text>
@@ -67,8 +72,8 @@ const styles = StyleSheet.create({
     paddingBottom: 34
   },
   mark: {
-    height: 112,
-    width: 112
+    height: 176,
+    width: 176
   },
   title: {
     fontWeight: '700',

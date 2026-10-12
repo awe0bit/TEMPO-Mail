@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import { useEffect, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
@@ -8,6 +9,9 @@ import { AppStateProvider } from '@/state/app-state';
 import { createTempoTheme } from '@/theme';
 
 const queryClient = new QueryClient();
+
+void SplashScreen.preventAutoHideAsync();
+SplashScreen.setOptions({ duration: 220, fade: true });
 
 function AutomaticUpdates() {
   useEffect(() => {
