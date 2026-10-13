@@ -1,5 +1,7 @@
 import { Stack } from 'expo-router';
 
 export default function Layout() {
-  return <Stack screenOptions={{ animation: 'simple_push', animationDuration: 280, headerShadowVisible: false }} />;
+  return <Stack screenOptions={{ animation: 'default', headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal', headerBackButtonMenuEnabled: false }}>
+    <Stack.Screen name="index" options={{ title: '概览' }} />
+  </Stack>;
 }

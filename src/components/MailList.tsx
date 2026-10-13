@@ -6,6 +6,7 @@ import type { MailItem } from '@/types';
 
 type Props = {
   data: MailItem[];
+  loading?: boolean;
   refreshing: boolean;
   onRefresh(): void;
   emptyTitle: string;
@@ -24,7 +25,7 @@ function displayTime(value: string) {
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-export function MailList({ data, refreshing, onRefresh, emptyTitle, emptyDetail, error, onOpen }: Props) {
+export function MailList({ data, loading = false, refreshing, onRefresh, emptyTitle, emptyDetail, error, onOpen }: Props) {
   const theme = useTheme();
 
   return (
@@ -35,7 +36,7 @@ export function MailList({ data, refreshing, onRefresh, emptyTitle, emptyDetail,
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.onSurfaceVariant} />}
       ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: theme.colors.outlineVariant }]} />}
-      ListEmptyComponent={refreshing ? <ActivityIndicator style={styles.loading} /> : (
+      ListEmptyComponent={loading ? <ActivityIndicator style={styles.loading} /> : (
         <MotionView style={styles.empty} distance={6} duration={220}>
           <Text variant="titleMedium">{error ? '无法载入邮件' : emptyTitle}</Text>
           <Text variant="bodyMedium" style={[styles.emptyDetail, { color: theme.colors.onSurfaceVariant }]}>{error || emptyDetail}</Text>

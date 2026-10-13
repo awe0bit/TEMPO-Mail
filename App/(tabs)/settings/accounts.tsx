@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { List, Text, TextInput, useTheme } from 'react-native-paper';
+import { ActivityIndicator, List, Text, TextInput, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   createManagedAccount, createTemporaryAddress, deleteManagedAccount, deleteTemporaryAddress,
@@ -102,10 +102,10 @@ export default function AdminAccountsScreen() {
           contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={accounts.isRefetching} onRefresh={() => accounts.refetch()} />}
           ItemSeparatorComponent={separator}
-          ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{accounts.error instanceof Error ? accounts.error.message : '没有账户或当前权限不足'}</Text>}
-          renderItem={({ item }) => (
+          ListEmptyComponent={accounts.isLoading ? <ActivityIndicator style={styles.loading} /> : <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{accounts.error instanceof Error ? accounts.error.message : '没有账户或当前权限不足'}</Text>}
+          renderItem={({ item, index }) => (
             <List.Item
-              style={styles.row}
+              style={[styles.row, { backgroundColor: theme.colors.surface }, index === 0 && styles.firstRow, index === (accounts.data?.length ?? 0) - 1 && styles.lastRow]}
               title={item.description || item.emailAddress}
               description={`${item.emailAddress}${isSuspended(item) ? ' · 已封禁' : ''}`}
               left={() => <View style={styles.rowIcon}><SettingsIcon symbol={isSuspended(item) ? 'person.crop.circle.badge.xmark' : 'person.crop.circle.fill'} tone={isSuspended(item) ? 'red' : 'blue'} /></View>}
@@ -119,9 +119,9 @@ export default function AdminAccountsScreen() {
           contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={temporary.isRefetching} onRefresh={() => temporary.refetch()} />}
           ItemSeparatorComponent={separator}
-          ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{temporary.error instanceof Error ? temporary.error.message : '没有临时邮箱，或服务器未启用 Masked Email'}</Text>}
-          renderItem={({ item }) => (
-            <List.Item style={styles.row} title={item.email} description={`${item.description || '无说明'} · ${item.enabled ? '启用' : '停用'}`} left={() => <View style={styles.rowIcon}><SettingsIcon symbol="envelope.badge.fill" tone={item.enabled ? 'purple' : 'gray'} /></View>} right={() => <TemporaryActions item={item} disabled={busy} onToggle={() => selected && run((passwordValue) => setTemporaryAddressEnabled(selected, passwordValue, item, !item.enabled))} onDelete={() => selected && Alert.alert('删除临时邮箱？', item.email, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteTemporaryAddress(selected, passwordValue, item.id)) }])} />} />
+          ListEmptyComponent={temporary.isLoading ? <ActivityIndicator style={styles.loading} /> : <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{temporary.error instanceof Error ? temporary.error.message : '没有临时邮箱，或服务器未启用 Masked Email'}</Text>}
+          renderItem={({ item, index }) => (
+            <List.Item style={[styles.row, { backgroundColor: theme.colors.surface }, index === 0 && styles.firstRow, index === (temporary.data?.length ?? 0) - 1 && styles.lastRow]} title={item.email} description={`${item.description || '无说明'} · ${item.enabled ? '启用' : '停用'}`} left={() => <View style={styles.rowIcon}><SettingsIcon symbol="envelope.badge.fill" tone={item.enabled ? 'purple' : 'gray'} /></View>} right={() => <TemporaryActions item={item} disabled={busy} onToggle={() => selected && run((passwordValue) => setTemporaryAddressEnabled(selected, passwordValue, item, !item.enabled))} onDelete={() => selected && Alert.alert('删除临时邮箱？', item.email, [{ text: '取消', style: 'cancel' }, { text: '删除', style: 'destructive', onPress: () => void run((passwordValue) => deleteTemporaryAddress(selected, passwordValue, item.id)) }])} />} />
           )}
         />
       )}
@@ -177,10 +177,13 @@ const styles = StyleSheet.create({
   page: { flex: 1 },
   preview: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 2 },
   editionNote: { paddingHorizontal: 20, paddingVertical: 12 },
-  listContent: { paddingBottom: 24 },
-  row: { paddingHorizontal: 8, paddingVertical: 3 },
+  listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  row: { minHeight: 64, paddingHorizontal: 2, paddingVertical: 2 },
+  firstRow: { borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  lastRow: { borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
   rowIcon: { width: 52, height: 48, alignItems: 'center', justifyContent: 'center' },
-  separator: { height: StyleSheet.hairlineWidth, marginLeft: 72, marginRight: 16 },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 66 },
+  loading: { marginVertical: 42 },
   empty: { padding: 40, textAlign: 'center' },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.28)' },

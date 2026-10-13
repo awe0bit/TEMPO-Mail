@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import * as SplashScreen from 'expo-splash-screen';
 import { PropsWithChildren, useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { InteractionManager, StyleSheet, View } from 'react-native';
 import { create } from 'zustand';
 import { adminAccess, discover, isAdministrator } from '@/api/jmap';
 import type { AdminAccess, MailAccount } from '@/types';
@@ -121,10 +121,16 @@ export function AppStateProvider({ children }: PropsWithChildren) {
   useEffect(() => { void initialize(); }, [initialize]);
   useEffect(() => {
     if (!ready || !contentLaidOut) return;
-    // Keep the single native splash visible through the first complete layout
-    // pass, then use its built-in fade. There is no second React splash page.
-    const timer = setTimeout(() => { void SplashScreen.hideAsync(); }, 120);
-    return () => clearTimeout(timer);
+    // Wait for the initial redirect/navigation commit. Hiding on an arbitrary
+    // timer can briefly reveal the root route before the selected screen.
+    let frame = 0;
+    const task = InteractionManager.runAfterInteractions(() => {
+      frame = requestAnimationFrame(() => { void SplashScreen.hideAsync(); });
+    });
+    return () => {
+      task.cancel();
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [contentLaidOut, ready]);
 
   return (

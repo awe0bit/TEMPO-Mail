@@ -21,8 +21,9 @@ function AutomaticUpdates() {
       try {
         const check = await Updates.checkForUpdateAsync();
         if (!check.isAvailable || !active) return;
-        const fetched = await Updates.fetchUpdateAsync();
-        if (fetched.isNew && active) await Updates.reloadAsync();
+        // Download in the background and apply on the next cold launch. An
+        // immediate reload makes a successful launch visibly restart itself.
+        await Updates.fetchUpdateAsync();
       } catch {
         // Mail must remain usable when the update service or network is unavailable.
       }
@@ -58,7 +59,7 @@ export default function RootLayout() {
         <PaperProvider theme={paperTheme}>
           <AutomaticUpdates />
           <AppStateProvider>
-            <Stack screenOptions={{ animation: 'simple_push', animationDuration: 280, headerShown: false, headerShadowVisible: false, contentStyle: { backgroundColor: paperTheme.colors.background } }}>
+            <Stack screenOptions={{ animation: 'default', headerShown: false, headerShadowVisible: false, headerBackButtonDisplayMode: 'minimal', headerBackButtonMenuEnabled: false, contentStyle: { backgroundColor: paperTheme.colors.background } }}>
               <Stack.Screen name="setup" options={{ animation: 'fade', animationDuration: 220, headerShown: true }} />
               <Stack.Screen name="compose" options={{ animation: 'slide_from_bottom', headerShown: true, presentation: 'modal' }} />
               <Stack.Screen name="mail/[id]" options={{ animation: 'simple_push', headerShown: true }} />

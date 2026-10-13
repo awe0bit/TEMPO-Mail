@@ -8,7 +8,7 @@ import { ActivityIndicator, List, Text, useTheme } from 'react-native-paper';
 import { fetchAdminSchema, queryAdminResource, setAdminResource } from '@/api/admin';
 import { adminZh, hasAdminObjectPermission, resolveAdminList, type AdminListAction } from '@/admin/schema';
 import { NativeGlassButton, NativeGlassIconButton } from '@/components/NativeControls';
-import { SettingsChevron } from '@/components/SettingsList';
+import { SettingsChevron, SettingsIcon } from '@/components/SettingsList';
 import { useAppState } from '@/state/app-state';
 
 const previewData: Record<string, Record<string, unknown>[]> = {
@@ -28,6 +28,17 @@ const valueText = (value: unknown) => {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString('zh-CN');
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+};
+
+const isSummaryValue = (value: unknown) => ['string', 'number', 'boolean'].includes(typeof value);
+
+const visualFor = (view: string) => {
+  if (/Account|Role|Tenant|Directory/i.test(view)) return { symbol: 'person.2.fill' as const, tone: 'blue' as const };
+  if (/Domain|Dns|Dkim/i.test(view)) return { symbol: 'globe' as const, tone: 'green' as const };
+  if (/Blocked|Allowed|Security|Certificate|Tls|Auth/i.test(view)) return { symbol: 'lock.shield.fill' as const, tone: 'red' as const };
+  if (/Queue|Mta|Email|Mail|Route/i.test(view)) return { symbol: 'paperplane.fill' as const, tone: 'orange' as const };
+  if (/Log|Trace|Metric|Task/i.test(view)) return { symbol: 'waveform.path.ecg' as const, tone: 'purple' as const };
+  return { symbol: 'server.rack' as const, tone: 'teal' as const };
 };
 
 export default function AdminResourceScreen() {
@@ -57,6 +68,7 @@ export default function AdminResourceScreen() {
   const canUpdate = Boolean(schema.data && hasAdminObjectPermission(schema.data, access, viewName, 'Update'));
   const columns = listDefinition?.columns ?? Object.keys(resource.data?.list?.[0] ?? {}).filter((key) => key !== 'id').slice(0, 4).map((name) => ({ name, label: name }));
   const labelProperty = listDefinition?.labelProperty ?? columns[0]?.name ?? 'id';
+  const visual = visualFor(viewName);
 
   const mutate = async (operation: { update?: Record<string, Record<string, unknown>>; destroy?: string[] }) => {
     if (preview) { Alert.alert('预览模式', '预览不会修改服务器数据。'); return; }
@@ -95,13 +107,24 @@ export default function AdminResourceScreen() {
         ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: theme.colors.outlineVariant }]} />}
         ListHeaderComponent={<Text style={[styles.total, { color: theme.colors.onSurfaceVariant }]}>{resource.data?.total ?? 0} 项</Text>}
         ListEmptyComponent={<View style={styles.empty}><Text variant="titleMedium">暂无数据</Text><Text style={{ color: theme.colors.onSurfaceVariant }}>服务器当前没有此类项目</Text></View>}
-        renderItem={({ item }) => {
-          const secondary = columns.slice(1, 3).map((column) => `${adminZh(column.label)}：${valueText(item[column.name])}`).join(' · ');
+        renderItem={({ item, index }) => {
+          const secondary = columns
+            .filter((column) => column.name !== labelProperty && isSummaryValue(item[column.name]))
+            .slice(0, 2)
+            .map((column) => `${adminZh(column.label)}：${valueText(item[column.name])}`)
+            .join(' · ');
+          const isFirst = index === 0;
+          const isLast = index === (resource.data?.list.length ?? 0) - 1;
           return <List.Item
-            style={styles.row}
+            style={[styles.row, { backgroundColor: theme.colors.surface }, isFirst && styles.firstRow, isLast && styles.lastRow]}
             title={valueText(item[labelProperty])}
             description={secondary || undefined}
-            onPress={() => setSelectedItem(item)}
+            titleNumberOfLines={1}
+            descriptionNumberOfLines={2}
+            left={() => <View style={styles.rowIcon}><SettingsIcon {...visual} /></View>}
+            onPress={() => canUpdate
+              ? router.push({ pathname: '/(tabs)/settings/editor' as never, params: { view: viewName, id: String(item.id), title: `编辑${title}` } } as never)
+              : setSelectedItem(item)}
             right={() => listDefinition?.itemActions?.length ? <ActionMenu actions={listDefinition.itemActions} onAction={(action) => runAction(action, item)} /> : <View style={styles.rowChevron}><SettingsChevron /></View>}
           />;
         }}
@@ -113,7 +136,12 @@ export default function AdminResourceScreen() {
           <View style={[styles.sheet, { backgroundColor: theme.colors.elevation.level2 }]}>
             <View style={styles.sheetHeader}><Text variant="headlineSmall" style={styles.sheetTitle}>{selectedItem ? valueText(selectedItem[labelProperty]) : title}</Text><NativeGlassIconButton label="关闭" systemImage="xmark" size={44} onPress={() => setSelectedItem(null)} /></View>
             <ScrollView contentContainerStyle={styles.details}>
-              {selectedItem && Object.entries(selectedItem).filter(([key]) => key !== 'id').map(([key, value]) => <View key={key} style={styles.detailRow}><Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>{adminZh(columns.find((column) => column.name === key)?.label ?? key)}</Text><Text variant="bodyMedium" selectable>{valueText(value)}</Text></View>)}
+              <View style={[styles.detailGroup, { backgroundColor: theme.colors.surface }]}>
+                {selectedItem && Object.entries(selectedItem).filter(([key]) => key !== 'id').map(([key, value], index) => <View key={key}>
+                  {index > 0 ? <View style={[styles.detailDivider, { backgroundColor: theme.colors.outlineVariant }]} /> : null}
+                  <View style={styles.detailRow}><Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>{adminZh(columns.find((column) => column.name === key)?.label ?? key)}</Text><Text variant="bodyMedium" selectable>{valueText(value)}</Text></View>
+                </View>)}
+              </View>
             </ScrollView>
             {canUpdate && selectedItem && <NativeGlassButton prominent wide label="编辑" systemImage="pencil" onPress={() => router.push({ pathname: '/(tabs)/settings/editor' as never, params: { view: viewName, id: String(selectedItem.id), title: `编辑${title}` } } as never)} />}
           </View>
@@ -131,17 +159,22 @@ function ActionMenu({ actions, onAction }: { actions: AdminListAction[]; onActio
 const styles = StyleSheet.create({
   page: { flex: 1 },
   loading: { marginTop: 100 },
-  listContent: { paddingBottom: 32 },
-  total: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 },
-  row: { paddingHorizontal: 8, paddingVertical: 3 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 32 },
+  total: { paddingHorizontal: 4, paddingTop: 8, paddingBottom: 7 },
+  row: { minHeight: 64, paddingHorizontal: 2, paddingVertical: 2 },
+  firstRow: { borderTopLeftRadius: 16, borderTopRightRadius: 16 },
+  lastRow: { borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
+  rowIcon: { width: 48, alignItems: 'center', justifyContent: 'center' },
   rowChevron: { justifyContent: 'center', paddingRight: 10 },
-  separator: { height: StyleSheet.hairlineWidth, marginLeft: 20 },
+  separator: { height: StyleSheet.hairlineWidth, marginLeft: 50 },
   empty: { alignItems: 'center', padding: 60, gap: 6 },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(0,0,0,0.28)' },
   sheet: { maxHeight: '82%', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 30, shadowColor: '#000', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: -8 } },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 12 },
   sheetTitle: { flex: 1, fontWeight: '700', letterSpacing: -0.4 },
-  details: { gap: 16, paddingBottom: 20 },
-  detailRow: { gap: 4 }
+  details: { paddingBottom: 20 },
+  detailGroup: { borderRadius: 16, overflow: 'hidden' },
+  detailRow: { gap: 5, paddingHorizontal: 16, paddingVertical: 13 },
+  detailDivider: { height: StyleSheet.hairlineWidth, marginLeft: 16 }
 });

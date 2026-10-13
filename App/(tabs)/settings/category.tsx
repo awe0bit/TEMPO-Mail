@@ -3,20 +3,17 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import { fetchAdminSchema } from '@/api/admin';
-import { adminZh, flattenAdminItems, hasAdminObjectPermission } from '@/admin/schema';
-import { SettingsDivider, SettingsGroup, SettingsRow } from '@/components/SettingsList';
+import { adminFeatureGroups, collectAdminFeatures, type AdminFeatureGroupKey } from '@/admin/navigation';
+import { SettingsDivider, SettingsGroup, SettingsRow, SettingsSectionTitle } from '@/components/SettingsList';
 import { useAppState } from '@/state/app-state';
 
 export default function SettingsCategoryScreen() {
   const theme = useTheme();
-  const params = useLocalSearchParams<{ layout: string; index: string; title: string }>();
+  const params = useLocalSearchParams<{ group: AdminFeatureGroupKey; title: string }>();
   const { selected, password, access } = useAppState();
   const schema = useQuery({ queryKey: ['admin-schema', selected?.id], enabled: Boolean(selected), staleTime: 10 * 60_000, queryFn: async () => fetchAdminSchema(selected!, await password()) });
-  const layout = schema.data?.layouts.find((item) => item.name === params.layout);
-  const entry = layout?.items[Number(params.index)];
-  const links = entry && 'container' in entry
-    ? flattenAdminItems(entry.container.items).filter((item) => schema.data && !item.viewName.startsWith('CustomComponent/') && hasAdminObjectPermission(schema.data, access, item.viewName, 'Get'))
-    : [];
+  const group = adminFeatureGroups.find((item) => item.key === params.group);
+  const links = schema.data ? collectAdminFeatures(schema.data, access).get(params.group) ?? [] : [];
 
   const open = (viewName: string, title: string) => {
     if (viewName === 'x:Account/User') return router.push('/(tabs)/settings/accounts' as never);
@@ -26,10 +23,11 @@ export default function SettingsCategoryScreen() {
   return <View style={[styles.page, { backgroundColor: theme.colors.background }]}>
     <Stack.Screen options={{ title: params.title || '设置分类', headerShadowVisible: false }} />
     {schema.isLoading ? <ActivityIndicator style={styles.loading} /> : <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+      {group ? <SettingsSectionTitle>{group.description}</SettingsSectionTitle> : null}
       {links.length ? <SettingsGroup>
         {links.map((item, index) => <View key={`${item.viewName}-${index}`}>
           {index > 0 ? <SettingsDivider /> : null}
-          <SettingsRow title={adminZh(item.name)} description={item.parents.map(adminZh).join(' · ') || undefined} symbol={symbolFor(item.viewName)} tone={toneFor(item.viewName)} onPress={() => open(item.viewName, adminZh(item.name))} />
+          <SettingsRow title={item.title} description={item.path || undefined} symbol={symbolFor(item.viewName)} tone={toneFor(item.viewName)} onPress={() => open(item.viewName, item.title)} />
         </View>)}
       </SettingsGroup> : <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>当前账户没有可用功能</Text>}
     </ScrollView>}
@@ -52,6 +50,6 @@ const toneFor = (view: string) => view.includes('Security') || view.includes('Bl
 const styles = StyleSheet.create({
   page: { flex: 1 },
   loading: { marginTop: 100 },
-  content: { padding: 16, paddingBottom: 40 },
+  content: { paddingHorizontal: 16, paddingBottom: 40 },
   empty: { padding: 50, textAlign: 'center' }
 });
