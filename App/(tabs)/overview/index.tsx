@@ -5,11 +5,11 @@ import { ActivityIndicator, Text, useTheme } from 'react-native-paper';
 import { fetchAdminOverview, type AdminMetric, type AdminOverview } from '@/api/admin';
 import { AccountMenu } from '@/components/AccountMenu';
 import { MotionView } from '@/components/Motion';
-import { SettingsDivider, SettingsGroup, SettingsRow, SettingsSectionTitle } from '@/components/SettingsList';
+import { SettingsGroup, SettingsRow, SettingsSectionTitle } from '@/components/SettingsList';
 import { useAppState } from '@/state/app-state';
 
 const previewOverview: AdminOverview = {
-  accounts: 18, domains: 2, queued: 1, failedTasks: 0, blockedIps: 7,
+  accounts: 18, domains: 2, queued: 1,
   metricsAvailable: true,
   metrics: [
     { '@type': 'Counter', metric: 'queue.message-queued', count: 126 },
@@ -84,10 +84,6 @@ export default function OverviewScreen() {
           <SettingsSectionTitle>需要关注</SettingsSectionTitle>
           <SettingsGroup>
             <SettingsRow title="投递队列" description={data.queued ? `${data.queued} 封邮件等待投递` : '队列正常'} value={String(data.queued)} symbol="paperplane.fill" tone="orange" onPress={() => router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: 'x:QueuedMessage', title: '待投递队列' } } as never)} />
-            <SettingsDivider />
-            <SettingsRow title="失败任务" description={data.failedTasks ? `${data.failedTasks} 个任务需要处理` : '没有失败任务'} value={String(data.failedTasks)} symbol="exclamationmark.triangle.fill" tone="red" onPress={() => router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: 'x:Task/TaskFailed', title: '失败任务' } } as never)} />
-            <SettingsDivider />
-            <SettingsRow title="已封禁 IP" description={`${data.blockedIps} 条安全规则`} value={String(data.blockedIps)} symbol="hand.raised.fill" tone="red" onPress={() => router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: 'x:BlockedIp', title: '已封禁 IP' } } as never)} />
           </SettingsGroup>
         </MotionView> : null}
       </ScrollView>

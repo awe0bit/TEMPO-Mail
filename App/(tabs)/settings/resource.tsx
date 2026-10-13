@@ -14,12 +14,7 @@ import { useAppState } from '@/state/app-state';
 
 const previewData: Record<string, Record<string, unknown>[]> = {
   'x:Domain': [{ id: 'd1', name: 'preview.local', isEnabled: true, certificateManagement: 'Automatic', dnsManagement: 'Manual' }],
-  'x:QueuedMessage': [{ id: 'q1', returnPath: 'sender@example.net', nextRetry: new Date(Date.now() + 600000).toISOString(), createdAt: new Date().toISOString(), size: 28416 }],
-  'x:Log': [{ id: 'l1', timestamp: new Date().toISOString(), level: 'Info', event: 'server.startup', details: 'TEMPO Mail 预览日志' }],
-  'x:Task': [{ id: 't1', '@type': 'AccountMaintenance', due: new Date().toISOString(), status: 'Pending' }],
-  'x:Task/TaskFailed': [],
-  'x:BlockedIp': [{ id: 'b1', address: '203.0.113.0/24', reason: 'Repeated authentication failures', createdAt: new Date().toISOString() }],
-  'x:AllowedIp': [{ id: 'a1', address: '192.0.2.10', reason: 'Office gateway', createdAt: new Date().toISOString() }]
+  'x:QueuedMessage': [{ id: 'q1', returnPath: 'sender@example.net', nextRetry: new Date(Date.now() + 600000).toISOString(), createdAt: new Date().toISOString(), size: 28416 }]
 };
 
 const valueText = (value: unknown) => {
