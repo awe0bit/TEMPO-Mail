@@ -25,10 +25,10 @@ const metricValue = (metrics: AdminMetric[], names: string[]) => metrics
 
 export default function OverviewScreen() {
   const theme = useTheme();
-  const { selected, password, preview, access } = useAppState();
+  const { selected, password, preview, access, interactive } = useAppState();
   const overview = useQuery({
     queryKey: ['admin-overview', selected?.id, preview],
-    enabled: Boolean(selected),
+    enabled: Boolean(selected) && interactive,
     refetchInterval: preview ? false : 60_000,
     queryFn: async () => preview ? previewOverview : fetchAdminOverview(selected!, await password())
   });

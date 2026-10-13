@@ -14,11 +14,11 @@ export default function MailDetailScreen() {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { selected, password, preview } = useAppState();
+  const { selected, password, preview, interactive } = useAppState();
   const [saving, setSaving] = useState(false);
   const mail = useQuery({
     queryKey: ['mail-detail', selected?.id, id],
-    enabled: Boolean(selected && id),
+    enabled: Boolean(selected && id && interactive),
     queryFn: async () => {
       if (preview) {
         const item = previewMail.find((entry) => entry.id === id);

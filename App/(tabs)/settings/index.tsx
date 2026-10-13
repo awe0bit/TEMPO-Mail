@@ -16,10 +16,10 @@ import { useAppState } from '@/state/app-state';
 
 export default function SettingsScreen() {
   const theme = useTheme();
-  const { selected, password, preview, access, admin, remove } = useAppState();
+  const { selected, password, preview, access, admin, remove, interactive } = useAppState();
   const schema = useQuery({
     queryKey: ['admin-schema', selected?.id],
-    enabled: Boolean(selected) && !preview,
+    enabled: Boolean(selected) && interactive && !preview,
     staleTime: 10 * 60_000,
     queryFn: async () => fetchAdminSchema(selected!, await password())
   });
@@ -81,7 +81,6 @@ const groupVisuals: Record<AdminFeatureGroupKey, { symbol: SettingsSymbol; tone:
   accounts: { symbol: 'person.2.fill', tone: 'blue' },
   delivery: { symbol: 'paperplane.fill', tone: 'orange' },
   security: { symbol: 'lock.shield.fill', tone: 'red' },
-  system: { symbol: 'server.rack', tone: 'teal' },
   diagnostics: { symbol: 'waveform.path.ecg', tone: 'purple' }
 };
 

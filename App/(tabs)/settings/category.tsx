@@ -10,8 +10,8 @@ import { useAppState } from '@/state/app-state';
 export default function SettingsCategoryScreen() {
   const theme = useTheme();
   const params = useLocalSearchParams<{ group: AdminFeatureGroupKey; title: string }>();
-  const { selected, password, access } = useAppState();
-  const schema = useQuery({ queryKey: ['admin-schema', selected?.id], enabled: Boolean(selected), staleTime: 10 * 60_000, queryFn: async () => fetchAdminSchema(selected!, await password()) });
+  const { selected, password, access, interactive } = useAppState();
+  const schema = useQuery({ queryKey: ['admin-schema', selected?.id], enabled: Boolean(selected) && interactive, staleTime: 10 * 60_000, queryFn: async () => fetchAdminSchema(selected!, await password()) });
   const group = adminFeatureGroups.find((item) => item.key === params.group);
   const links = schema.data ? collectAdminFeatures(schema.data, access).get(params.group) ?? [] : [];
 
@@ -27,7 +27,7 @@ export default function SettingsCategoryScreen() {
       {links.length ? <SettingsGroup>
         {links.map((item, index) => <View key={`${item.viewName}-${index}`}>
           {index > 0 ? <SettingsDivider /> : null}
-          <SettingsRow title={item.title} description={item.path || undefined} symbol={symbolFor(item.viewName)} tone={toneFor(item.viewName)} onPress={() => open(item.viewName, item.title)} />
+          <SettingsRow title={item.title} description={item.path || undefined} value={item.mode === 'read' ? '只读' : undefined} symbol={symbolFor(item.viewName)} tone={toneFor(item.viewName)} onPress={() => open(item.viewName, item.title)} />
         </View>)}
       </SettingsGroup> : <Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>当前账户没有可用功能</Text>}
     </ScrollView>}

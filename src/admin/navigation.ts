@@ -1,22 +1,41 @@
 import { adminZh, flattenAdminItems, hasAdminObjectPermission, type AdminSchema } from '@/admin/schema';
 import type { AdminAccess } from '@/types';
 
-export type AdminFeatureGroupKey = 'accounts' | 'delivery' | 'security' | 'system' | 'diagnostics';
+export type AdminFeatureGroupKey = 'accounts' | 'delivery' | 'security' | 'diagnostics';
+export type MobileAdminMode = 'manage' | 'read';
 
 export type AdminFeature = {
   name: string;
   title: string;
   viewName: string;
   path: string;
+  mode: MobileAdminMode;
 };
 
 export const adminFeatureGroups: { key: AdminFeatureGroupKey; title: string; description: string }[] = [
-  { key: 'accounts', title: '账户与身份', description: '邮箱账户、域名、群组、角色与凭据' },
-  { key: 'delivery', title: '邮件与投递', description: '队列、路由、传输、过滤与反垃圾邮件' },
-  { key: 'security', title: '安全与访问', description: '身份验证、证书、TLS 与网络访问规则' },
-  { key: 'system', title: '服务与存储', description: '网络服务、数据存储、缓存与集群' },
-  { key: 'diagnostics', title: '诊断与维护', description: '任务、指标、追踪、日志与维护操作' }
+  { key: 'accounts', title: '账户与身份', description: '邮箱账户、群组、邮件列表与域名状态' },
+  { key: 'delivery', title: '邮件与投递', description: '投递队列和收发报告' },
+  { key: 'security', title: '安全状态', description: '只读查看封禁与允许名单' },
+  { key: 'diagnostics', title: '运行诊断', description: '只读查看任务、指标、追踪和日志' }
 ];
+
+type MobileRule = { test: RegExp; group: AdminFeatureGroupKey; mode: MobileAdminMode };
+
+// Mobile deliberately exposes a small, audited subset of WebAdmin. Listener,
+// storage, TLS, authentication, cluster, DNS-provider and service settings can
+// break JMAP/WebAdmin connectivity, so they never enter the mobile route tree.
+const mobileRules: MobileRule[] = [
+  { test: /^x:Account\/(User|Group|MailingList)$/i, group: 'accounts', mode: 'manage' },
+  { test: /^x:(Domain|DkimSignature)$/i, group: 'accounts', mode: 'read' },
+  { test: /^x:(QueuedMessage|IncomingReport|OutgoingReport)(\/.*)?$/i, group: 'delivery', mode: 'manage' },
+  { test: /^x:(BlockedIp|AllowedIp)$/i, group: 'security', mode: 'read' },
+  { test: /^x:(Task|Metric|Log|Trace)(\/.*)?$/i, group: 'diagnostics', mode: 'read' }
+];
+
+export function mobileAdminPolicy(viewName: string) {
+  const rule = mobileRules.find((item) => item.test.test(viewName));
+  return rule ? { group: rule.group, mode: rule.mode } : null;
+}
 
 export function collectAdminFeatures(schema: AdminSchema, access: AdminAccess | null) {
   const unique = new Map<string, AdminFeature>();
@@ -29,13 +48,16 @@ export function collectAdminFeatures(schema: AdminSchema, access: AdminAccess | 
 
       for (const item of items) {
         if (item.viewName.startsWith('CustomComponent/')) continue;
+        const policy = mobileAdminPolicy(item.viewName);
+        if (!policy) continue;
         if (!hasAdminObjectPermission(schema, access, item.viewName, 'Get')) continue;
         if (unique.has(item.viewName)) continue;
         unique.set(item.viewName, {
           name: item.name,
           title: adminZh(item.name),
           viewName: item.viewName,
-          path: item.parents.map(adminZh).join(' · ')
+          path: item.parents.map(adminZh).join(' · '),
+          mode: policy.mode
         });
       }
     }
@@ -43,16 +65,7 @@ export function collectAdminFeatures(schema: AdminSchema, access: AdminAccess | 
 
   const grouped = new Map<AdminFeatureGroupKey, AdminFeature[]>();
   for (const group of adminFeatureGroups) grouped.set(group.key, []);
-  for (const feature of unique.values()) grouped.get(classify(feature))!.push(feature);
+  for (const feature of unique.values()) grouped.get(mobileAdminPolicy(feature.viewName)!.group)!.push(feature);
   for (const features of grouped.values()) features.sort((a, b) => a.title.localeCompare(b.title, 'zh-CN'));
   return grouped;
-}
-
-function classify(feature: AdminFeature): AdminFeatureGroupKey {
-  const value = `${feature.name} ${feature.viewName} ${feature.path}`.toLowerCase();
-  if (/log|trace|metric|report|task|action|telemetry|alert|event|observab|lookup|maintenance/.test(value)) return 'diagnostics';
-  if (/security|auth|certificate|acme|blocked|allowed|tls|api.?key|public.?key|encrypt/.test(value)) return 'security';
-  if (/queue|deliver|email|mailbox|mta|inbound|outbound|route|sieve|spam|filter|archive|classif/.test(value)) return 'delivery';
-  if (/account|directory|domain|dkim|group|mailing.?list|tenant|role|oauth|credential|password|contact|calendar/.test(value)) return 'accounts';
-  return 'system';
 }

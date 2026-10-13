@@ -24,7 +24,7 @@ export default function AdminAccountsScreen() {
   const params = useLocalSearchParams<{ section?: string }>();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { selected, password, preview, access } = useAppState();
+  const { selected, password, preview, access, interactive } = useAppState();
   const temporaryAvailable = preview || access?.edition === 'enterprise';
   const queryClient = useQueryClient();
   const [section, setSection] = useState(params.section === 'temporary' && temporaryAvailable ? 'temporary' : 'accounts');
@@ -41,11 +41,11 @@ export default function AdminAccountsScreen() {
   }, [section, temporaryAvailable]);
 
   const accounts = useQuery({
-    queryKey: ['managed-accounts', selected?.id, preview], enabled: Boolean(selected),
+    queryKey: ['managed-accounts', selected?.id, preview], enabled: Boolean(selected) && interactive,
     queryFn: async () => preview ? previewManagedAccounts : fetchManagedAccounts(selected!, await password())
   });
   const temporary = useQuery({
-    queryKey: ['temporary-addresses', selected?.id, preview], enabled: Boolean(selected) && section === 'temporary',
+    queryKey: ['temporary-addresses', selected?.id, preview], enabled: Boolean(selected) && interactive && section === 'temporary',
     queryFn: async () => preview ? previewTemporaryAddresses : fetchTemporaryAddresses(selected!, await password())
   });
 

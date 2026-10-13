@@ -24,12 +24,12 @@ const folders: { role: MailRole; label: string; icon: 'tray' | 'star' | 'paperpl
 export function MailScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { selected, password, preview } = useAppState();
+  const { selected, password, preview, interactive } = useAppState();
   const [role, setRole] = useState<MailRole>('inbox');
   const folder = folders.find((item) => item.role === role)!;
   const query = useQuery({
     queryKey: ['mail', selected?.id, role],
-    enabled: Boolean(selected),
+    enabled: Boolean(selected) && interactive,
     queryFn: async () => {
       if (preview) {
         return previewMail.filter((item) => {

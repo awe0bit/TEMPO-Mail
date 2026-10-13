@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ActivityIndicator, List, Text, useTheme } from 'react-native-paper';
 import { fetchAdminSchema, queryAdminResource, setAdminResource } from '@/api/admin';
+import { mobileAdminPolicy } from '@/admin/navigation';
 import { adminZh, hasAdminObjectPermission, resolveAdminList, type AdminListAction } from '@/admin/schema';
 import { NativeGlassButton, NativeGlassIconButton } from '@/components/NativeControls';
 import { SettingsChevron, SettingsIcon } from '@/components/SettingsList';
@@ -46,26 +47,27 @@ export default function AdminResourceScreen() {
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ view: string; title?: string; filterField?: string; filterValue?: string }>();
   const viewName = params.view;
+  const policy = mobileAdminPolicy(viewName);
   const title = params.title || adminZh(viewName?.replace(/^x:/, '') || '管理对象');
-  const { selected, password, preview, access } = useAppState();
+  const { selected, password, preview, access, interactive } = useAppState();
   const [search, setSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
   const schema = useQuery({
-    queryKey: ['admin-schema', selected?.id], enabled: Boolean(selected) && !preview, staleTime: 10 * 60_000,
+    queryKey: ['admin-schema', selected?.id], enabled: Boolean(selected && policy) && interactive && !preview, staleTime: 10 * 60_000,
     queryFn: async () => fetchAdminSchema(selected!, await password())
   });
   const listDefinition = schema.data ? resolveAdminList(schema.data, viewName) : null;
   const resource = useQuery({
     queryKey: ['admin-resource', selected?.id, viewName, search, params.filterField, params.filterValue, preview],
-    enabled: Boolean(selected) && Boolean(viewName) && (preview || Boolean(schema.data)),
+    enabled: Boolean(selected && policy) && interactive && Boolean(viewName) && (preview || Boolean(schema.data)),
     queryFn: async () => {
       if (preview) return { list: previewData[viewName] ?? [], total: (previewData[viewName] ?? []).length };
       const filter = params.filterField && params.filterValue ? { [params.filterField]: params.filterValue } : undefined;
       return queryAdminResource(selected!, await password(), schema.data!, viewName, { search, filter });
     }
   });
-  const canCreate = Boolean(schema.data && hasAdminObjectPermission(schema.data, access, viewName, 'Create'));
-  const canUpdate = Boolean(schema.data && hasAdminObjectPermission(schema.data, access, viewName, 'Update'));
+  const canCreate = Boolean(policy?.mode === 'manage' && schema.data && hasAdminObjectPermission(schema.data, access, viewName, 'Create'));
+  const canUpdate = Boolean(policy?.mode === 'manage' && schema.data && hasAdminObjectPermission(schema.data, access, viewName, 'Update'));
   const columns = listDefinition?.columns ?? Object.keys(resource.data?.list?.[0] ?? {}).filter((key) => key !== 'id').slice(0, 4).map((name) => ({ name, label: name }));
   const labelProperty = listDefinition?.labelProperty ?? columns[0]?.name ?? 'id';
   const visual = visualFor(viewName);
@@ -82,11 +84,12 @@ export default function AdminResourceScreen() {
   };
 
   const runAction = (action: AdminListAction, item: Record<string, unknown>) => {
+    if (policy?.mode !== 'manage') return;
     const id = String(item.id);
     if (action.type === 'setProperty') void mutate({ update: { [id]: action.properties } });
-    if (action.type === 'delete') Alert.alert(action.label, '这个操作会立即写入服务器。', [{ text: '取消', style: 'cancel' }, { text: '确认', style: 'destructive', onPress: () => void mutate({ destroy: [id] }) }]);
-    if (action.type === 'query') router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: action.objectName, title: adminZh(action.label), filterField: action.fieldName, filterValue: id } } as never);
-    if (action.type === 'view') router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: action.objectName, title: adminZh(action.label), filterField: 'id', filterValue: id } } as never);
+    if (action.type === 'delete') Alert.alert(adminZh(action.label), '这个操作会立即写入服务器。', [{ text: '取消', style: 'cancel' }, { text: '确认', style: 'destructive', onPress: () => void mutate({ destroy: [id] }) }]);
+    if (action.type === 'query' && mobileAdminPolicy(action.objectName)) router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: action.objectName, title: adminZh(action.label), filterField: action.fieldName, filterValue: id } } as never);
+    if (action.type === 'view' && mobileAdminPolicy(action.objectName)) router.push({ pathname: '/(tabs)/settings/resource' as never, params: { view: action.objectName, title: adminZh(action.label), filterField: 'id', filterValue: id } } as never);
   };
 
   return (
@@ -96,7 +99,7 @@ export default function AdminResourceScreen() {
         headerSearchBarOptions: { placeholder: `搜索${title}`, hideWhenScrolling: true, onChangeText: (event) => setSearch(event.nativeEvent.text) },
         headerRight: canCreate ? () => <Host matchContents><NativeButton label="添加" systemImage="plus" onPress={() => router.push({ pathname: '/(tabs)/settings/editor' as never, params: { view: viewName, title: `添加${title}` } } as never)} /></Host> : undefined
       }} />
-      {(schema.isLoading || resource.isLoading) ? <ActivityIndicator style={styles.loading} /> : resource.error ? (
+      {!policy ? <View style={styles.empty}><Text variant="titleMedium">此配置仅限网页管理</Text><Text style={{ color: theme.colors.onSurfaceVariant }}>为避免中断服务器连接，移动端不提供该功能。</Text></View> : (schema.isLoading || resource.isLoading) ? <ActivityIndicator style={styles.loading} /> : resource.error ? (
         <View style={styles.empty}><Text variant="titleMedium">加载失败</Text><Text style={{ color: theme.colors.onSurfaceVariant }}>{resource.error instanceof Error ? resource.error.message : '未知错误'}</Text></View>
       ) : <FlashList<Record<string, unknown>>
         data={(resource.data?.list ?? []) as Record<string, unknown>[]}
@@ -125,7 +128,7 @@ export default function AdminResourceScreen() {
             onPress={() => canUpdate
               ? router.push({ pathname: '/(tabs)/settings/editor' as never, params: { view: viewName, id: String(item.id), title: `编辑${title}` } } as never)
               : setSelectedItem(item)}
-            right={() => listDefinition?.itemActions?.length ? <ActionMenu actions={listDefinition.itemActions} onAction={(action) => runAction(action, item)} /> : <View style={styles.rowChevron}><SettingsChevron /></View>}
+            right={() => policy.mode === 'manage' && listDefinition?.itemActions?.length ? <ActionMenu actions={listDefinition.itemActions} onAction={(action) => runAction(action, item)} /> : <View style={styles.rowChevron}><SettingsChevron /></View>}
           />;
         }}
       />}

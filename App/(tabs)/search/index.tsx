@@ -11,12 +11,12 @@ import { useAppState } from '@/state/app-state';
 
 export default function SearchScreen() {
   const theme = useTheme();
-  const { selected, password, preview } = useAppState();
+  const { selected, password, preview, interactive } = useAppState();
   const [search, setSearch] = useState('');
   const term = search.trim();
   const query = useQuery({
     queryKey: ['mail-search', selected?.id, term],
-    enabled: Boolean(selected) && term.length > 0,
+    enabled: Boolean(selected) && interactive && term.length > 0,
     queryFn: async () => {
       if (preview) {
         const value = term.toLowerCase();

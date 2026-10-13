@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { HelperText, Text, TextInput, useTheme } from 'react-native-paper';
 import { fetchAdminSchema, getAdminResource, setAdminResource } from '@/api/admin';
-import { adminZh, resolveAdminForm, resolveAdminList, type AdminField } from '@/admin/schema';
+import { mobileAdminPolicy } from '@/admin/navigation';
+import { adminDescriptionZh, adminZh, resolveAdminForm, resolveAdminList, type AdminField } from '@/admin/schema';
 import { NativeGlassButton } from '@/components/NativeControls';
 import { SettingsDivider, SettingsGroup, SettingsSectionTitle } from '@/components/SettingsList';
 import { useAppState } from '@/state/app-state';
@@ -17,18 +18,19 @@ export default function AdminEditorScreen() {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ view: string; id?: string; title?: string }>();
-  const { selected, password, preview } = useAppState();
+  const policy = mobileAdminPolicy(params.view);
+  const { selected, password, preview, interactive } = useAppState();
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const schema = useQuery({
-    queryKey: ['admin-schema', selected?.id], enabled: Boolean(selected) && !preview, staleTime: 10 * 60_000,
+    queryKey: ['admin-schema', selected?.id], enabled: Boolean(selected && policy?.mode === 'manage') && interactive && !preview, staleTime: 10 * 60_000,
     queryFn: async () => fetchAdminSchema(selected!, await password())
   });
   const item = useQuery({
     queryKey: ['admin-item', selected?.id, params.view, params.id],
-    enabled: Boolean(selected && schema.data && params.id) && !preview,
+    enabled: Boolean(selected && schema.data && params.id && policy?.mode === 'manage') && interactive && !preview,
     queryFn: async () => getAdminResource(selected!, await password(), schema.data!, params.view, params.id!)
   });
   const resolved = useMemo(() => schema.data ? resolveAdminForm(schema.data, params.view, item.data) : null, [schema.data, params.view, item.data]);
@@ -61,6 +63,7 @@ export default function AdminEditorScreen() {
 
   const update = (name: string, value: unknown) => setValues((current) => ({ ...current, [name]: value }));
   const save = async () => {
+    if (policy?.mode !== 'manage') return;
     if (preview) { Alert.alert('预览模式', '预览不会修改服务器数据。'); return; }
     if (!schema.data || !selected || !resolved) return;
     setBusy(true); setError(null);
@@ -92,7 +95,7 @@ export default function AdminEditorScreen() {
     <KeyboardAvoidingView style={[styles.page, { backgroundColor: theme.colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <Stack.Screen options={{ title: params.title || (params.id ? '编辑' : '添加'), headerShadowVisible: false }} />
       <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-        {schema.isLoading || (params.id && item.isLoading) ? <Text style={styles.loading}>正在读取服务器表单…</Text> : !resolved ? <Text style={styles.loading}>服务器没有提供可编辑表单</Text> : <>
+        {policy?.mode !== 'manage' ? <Text style={styles.loading}>为避免影响服务器连接，此配置只能在网页管理后台修改。</Text> : schema.isLoading || (params.id && item.isLoading) ? <Text style={styles.loading}>正在读取服务器表单…</Text> : !resolved ? <Text style={styles.loading}>服务器没有提供可编辑表单</Text> : <>
           <Text variant="bodyMedium" style={[styles.intro, { color: theme.colors.onSurfaceVariant }]}>字段、默认值和权限直接来自当前 Stalwart 服务器。</Text>
           {formSections.map((section) => <View key={section.title}>
             <SettingsSectionTitle>{section.title}</SettingsSectionTitle>
@@ -118,7 +121,8 @@ export default function AdminEditorScreen() {
 function FieldControl({ field, label, value, disabled, enums, onChange }: { field: AdminField; label: string; value: unknown; disabled: boolean; enums: Record<string, { name: string; label: string }[]>; onChange(value: unknown): void }) {
   const theme = useTheme();
   if (field.type.type === 'boolean') {
-    return <View style={styles.booleanRow}><View style={styles.booleanText}><Text style={styles.rowTitle}>{label}</Text>{field.description && <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{field.description}</Text>}</View><Switch value={Boolean(value)} disabled={disabled} onValueChange={onChange} /></View>;
+    const description = adminDescriptionZh(field.description);
+    return <View style={styles.booleanRow}><View style={styles.booleanText}><Text style={styles.rowTitle}>{label}</Text>{description && <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{description}</Text>}</View><Switch value={Boolean(value)} disabled={disabled} onValueChange={onChange} /></View>;
   }
   if (field.type.type === 'enum') {
     const options = enums[field.type.enumName] ?? [];
@@ -127,13 +131,14 @@ function FieldControl({ field, label, value, disabled, enums, onChange }: { fiel
   }
   const complex = isComplex(field);
   const text = complex && typeof value !== 'string' ? JSON.stringify(value ?? {}, null, 2) : value == null ? '' : String(value);
+  const description = adminDescriptionZh(field.description);
   return <View style={styles.fieldWrap}><TextInput
     mode="flat" label={label} value={text} disabled={disabled}
     secureTextEntry={field.type.type === 'string' && ['secret', 'secretText'].includes(field.type.format ?? '')}
     multiline={complex || (field.type.type === 'string' && ['text', 'html'].includes(field.type.format ?? ''))}
     keyboardType={field.type.type === 'number' ? 'numeric' : field.type.type === 'string' && field.type.format === 'emailAddress' ? 'email-address' : 'default'}
     autoCapitalize="none" onChangeText={onChange} style={styles.input}
-  />{field.description && <HelperText type="info">{field.description}</HelperText>}</View>;
+  />{description && <HelperText type="info">{description}</HelperText>}</View>;
 }
 
 const styles = StyleSheet.create({

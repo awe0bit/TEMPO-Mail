@@ -135,10 +135,60 @@ const zh: Record<string, string> = {
   Alerts: '告警', 'Event Levels': '事件级别', 'Task Manager': '任务管理器', AI: 'AI', 'Web Applications': 'Web 应用', Enterprise: '企业版',
   Credentials: '凭据', Password: '密码', 'App Passwords': '应用密码', 'API Keys': 'API 密钥', Mailboxes: '邮箱文件夹', Calendars: '日历',
   'Address Books': '通讯录', 'Sieve Scripts': 'Sieve 脚本', 'Vacation Response': '自动回复', 'Masked Addresses': '临时邮箱', 'Archived Items': '归档项目',
-  'Spam Samples': '垃圾邮件样本', 'Public Keys': '公钥', 'DNS Providers': 'DNS 提供商', 'DNS Resolver': 'DNS 解析器'
+  'Spam Samples': '垃圾邮件样本', 'Public Keys': '公钥', 'DNS Providers': 'DNS 提供商', 'DNS Resolver': 'DNS 解析器',
+  Name: '名称', Type: '类型', Description: '说明', Status: '状态', Enabled: '已启用', Disabled: '已停用', Active: '启用', Inactive: '停用',
+  Users: '用户账户', 'User Account': '用户账户', 'Group Account': '群组账户', 'External Account': '外部账户', Domain: '域名',
+  'Email Address': '邮箱地址', EmailAddress: '邮箱地址', emailAddress: '邮箱地址', address: '地址', username: '用户名', displayName: '显示名称',
+  id: '标识符', Identifier: '标识符', domainName: '域名', createdAt: '创建时间', updatedAt: '更新时间', lastModified: '最后修改时间', timestamp: '时间',
+  size: '大小', quota: '容量限制', usedQuota: '已用容量', members: '成员', permissions: '权限', isEnabled: '启用状态',
+  sender: '发件人', from: '发件人', recipient: '收件人', recipients: '收件人', to: '收件人', subject: '主题', returnPath: '退信地址', nextRetry: '下次重试', lastAttempt: '上次尝试', retryCount: '重试次数', attempts: '尝试次数',
+  reason: '原因', level: '级别', event: '事件', details: '详情', due: '计划时间', contents: '内容', domain: '域名',
+  certificateManagement: '证书管理方式', dnsManagement: 'DNS 管理方式', Automatic: '自动', Manual: '手动', Pending: '等待处理',
+  Completed: '已完成', User: '用户', Group: '群组', MailingList: '邮件列表',
+  Add: '添加', Create: '创建', Edit: '编辑', Delete: '删除', Remove: '移除', Retry: '重试', Cancel: '取消', Suspend: '封禁',
+  Restore: '恢复', Enable: '启用', Disable: '停用', View: '查看', Details: '详情', 'View details': '查看详情'
 };
 
-export const adminZh = (value: string) => zh[value] ?? value;
+const wordZh: Record<string, string> = {
+  account: '账户', accounts: '账户', address: '地址', allowed: '允许', archived: '归档', blocked: '封禁', calendar: '日历', cancel: '取消', certificate: '证书',
+  create: '创建', created: '创建', data: '数据', delete: '删除', delivery: '投递', description: '说明', details: '详情', directory: '目录', disable: '停用', disabled: '停用', domain: '域名',
+  edit: '编辑', email: '邮箱', emails: '邮件', enable: '启用', enabled: '启用', event: '事件', failed: '失败', field: '字段', filter: '过滤', group: '群组', history: '历史',
+  id: '标识符', inbound: '入站', ip: 'IP', level: '级别', list: '列表', log: '日志', mailbox: '邮箱文件夹', mailing: '邮件', message: '邮件',
+  metric: '指标', name: '名称', next: '下次', outbound: '出站', path: '路径', pending: '等待处理', permission: '权限', permissions: '权限',
+  queue: '队列', queued: '待投递', quota: '容量限制', reason: '原因', recipient: '收件人', release: '放行', report: '报告', requeue: '重新入队', restore: '恢复', retry: '重试', role: '角色',
+  sender: '发件人', server: '服务器', size: '大小', status: '状态', task: '任务', tenant: '租户', time: '时间', timestamp: '时间',
+  trace: '追踪', type: '类型', updated: '更新', user: '用户', used: '已用', view: '查看'
+};
+
+export const adminZh = (value: string) => {
+  if (!value) return value;
+  if (zh[value]) return zh[value];
+  if (/\p{Script=Han}/u.test(value)) return value;
+  const words = value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[._/:-]+/g, ' ')
+    .trim()
+    .split(/\s+/);
+  let translated = false;
+  const result = words.map((word) => {
+    const replacement = wordZh[word.toLowerCase()];
+    if (replacement) translated = true;
+    return replacement ?? word;
+  }).join('');
+  return translated ? result : value;
+};
+
+const descriptionZh: Record<string, string> = {
+  'Whether this item is enabled': '是否启用此项目',
+  'The name of the item': '此项目的名称',
+  'A description of the item': '用于识别此项目的说明'
+};
+
+export const adminDescriptionZh = (value?: string) => {
+  if (!value) return undefined;
+  if (/\p{Script=Han}/u.test(value)) return value;
+  return descriptionZh[value];
+};
 
 export function flattenAdminItems(items: (AdminLayoutLink | AdminLayoutContainer)[], parents: string[] = []): { name: string; viewName: string; parents: string[] }[] {
   return items.flatMap((item) => item.type === 'link'

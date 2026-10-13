@@ -10,6 +10,7 @@ import { previewAccess, previewAccount } from '@/preview/fixtures';
 
 type Store = {
   ready: boolean;
+  interactive: boolean;
   accounts: MailAccount[];
   selectedId: string | null;
   access: AdminAccess | null;
@@ -17,6 +18,8 @@ type Store = {
   admin: boolean;
   preview: boolean;
   initialize(): Promise<void>;
+  markInteractive(): void;
+  refreshAccess(): Promise<void>;
   connect(server: string, email: string, username: string, password: string): Promise<void>;
   enterPreview(): void;
   select(id: string): Promise<void>;
@@ -43,6 +46,7 @@ async function loadAccess(account: MailAccount | null) {
 
 export const useAppState = create<Store>((set, get) => ({
   ready: false,
+  interactive: false,
   accounts: [],
   selectedId: null,
   access: null,
@@ -66,14 +70,20 @@ export const useAppState = create<Store>((set, get) => ({
     // refreshed in the background so launch never waits for the server and the
     // administrator tab does not get inserted after the tab bar is visible.
     set({ ready: true, preview, accounts: saved.accounts, selectedId: saved.selectedId, access: cachedAccess, ...derive(saved.accounts, saved.selectedId, cachedAccess) });
+  },
+  markInteractive() {
+    set({ interactive: true });
+  },
+  async refreshAccess() {
+    const { selected, selectedId, access: cachedAccess, preview } = get();
     if (!selected || preview) return;
     const refreshedAccess = await loadAccess(selected);
-    // A transient network/auth refresh must not make the administrator tab
-    // disappear and rebuild the native tab bar after it is already visible.
-    // Keep the last confirmed capability set until a later refresh succeeds.
+    // Keep the last confirmed capability set when the server is temporarily
+    // unavailable, so the native tab bar never rebuilds underneath the user.
     const access = refreshedAccess ?? cachedAccess;
-    await persist(saved.accounts, saved.selectedId, access);
-    if (get().selectedId === saved.selectedId) set({ access, ...derive(saved.accounts, saved.selectedId, access) });
+    const accounts = get().accounts;
+    await persist(accounts, selectedId, access);
+    if (get().selectedId === selectedId) set({ access, ...derive(accounts, selectedId, access) });
   },
   async connect(server, email, username, secret) {
     const account = await discover(server, email, username, secret);
@@ -117,6 +127,8 @@ export const useAppState = create<Store>((set, get) => ({
 export function AppStateProvider({ children }: PropsWithChildren) {
   const initialize = useAppState((state) => state.initialize);
   const ready = useAppState((state) => state.ready);
+  const markInteractive = useAppState((state) => state.markInteractive);
+  const refreshAccess = useAppState((state) => state.refreshAccess);
   const [contentLaidOut, setContentLaidOut] = useState(false);
   useEffect(() => { void initialize(); }, [initialize]);
   useEffect(() => {
@@ -124,14 +136,26 @@ export function AppStateProvider({ children }: PropsWithChildren) {
     // Wait for the initial redirect/navigation commit. Hiding on an arbitrary
     // timer can briefly reveal the root route before the selected screen.
     let frame = 0;
+    let permissionTimer: ReturnType<typeof setTimeout> | undefined;
+    let active = true;
     const task = InteractionManager.runAfterInteractions(() => {
-      frame = requestAnimationFrame(() => { void SplashScreen.hideAsync(); });
+      frame = requestAnimationFrame(() => {
+        void SplashScreen.hideAsync().then(() => {
+          if (!active) return;
+          // Network access to a private host can trigger iOS Local Network
+          // permission. Start it only after the launch screen has fully left.
+          markInteractive();
+          permissionTimer = setTimeout(() => { void refreshAccess(); }, 350);
+        });
+      });
     });
     return () => {
+      active = false;
       task.cancel();
       if (frame) cancelAnimationFrame(frame);
+      if (permissionTimer) clearTimeout(permissionTimer);
     };
-  }, [contentLaidOut, ready]);
+  }, [contentLaidOut, markInteractive, ready, refreshAccess]);
 
   return (
     <View style={styles.appRoot}>
