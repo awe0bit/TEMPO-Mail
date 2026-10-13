@@ -178,31 +178,42 @@ async function call(account: MailAccount, password: string, methodCalls: unknown
   return json;
 }
 
+type MailboxSummary = { id: string; role?: string };
+const mailboxCache = new Map<string, MailboxSummary[]>();
+
+async function mailboxes(account: MailAccount, password: string) {
+  const cached = mailboxCache.get(account.id);
+  if (cached) return cached;
+  const response = await call(account, password, [['Mailbox/get', { accountId: account.accountId, ids: null }, 'mailboxes']]);
+  const boxes = (response.methodResponses?.find((entry: unknown[]) => entry[0] === 'Mailbox/get')?.[1]?.list ?? []) as MailboxSummary[];
+  mailboxCache.set(account.id, boxes);
+  return boxes;
+}
+
 export async function fetchMail(account: MailAccount, password: string, role: 'inbox' | 'sent' | 'starred' | 'all', search = ''): Promise<MailItem[]> {
-  const mailboxResponse = await call(account, password, [['Mailbox/get', { accountId: account.accountId, ids: null }, 'mailboxes']]);
-  const boxes = mailboxResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Mailbox/get')?.[1]?.list ?? [];
   const filter: Record<string, unknown> = {};
   if (role === 'starred') filter.hasKeyword = '$flagged';
   else if (role !== 'all') {
+    const boxes = await mailboxes(account, password);
     const mailboxId = boxes.find((item: { role?: string }) => item.role === role)?.id;
     if (!mailboxId) return [];
     filter.inMailbox = mailboxId;
   }
   if (search.trim()) filter.text = search.trim();
-  const queryResponse = await call(account, password, [['Email/query', {
-    accountId: account.accountId,
-    ...(Object.keys(filter).length ? { filter } : {}),
-    sort: [{ property: 'receivedAt', isAscending: false }],
-    limit: 50
-  }, 'query']]);
-  const ids = queryResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/query')?.[1]?.ids ?? [];
-  if (!ids.length) return [];
-  const getResponse = await call(account, password, [['Email/get', {
-    accountId: account.accountId,
-    ids,
-    properties: ['id', 'subject', 'preview', 'receivedAt', 'from', 'keywords']
-  }, 'emails']]);
-  return (getResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/get')?.[1]?.list ?? []) as MailItem[];
+  const response = await call(account, password, [
+    ['Email/query', {
+      accountId: account.accountId,
+      ...(Object.keys(filter).length ? { filter } : {}),
+      sort: [{ property: 'receivedAt', isAscending: false }],
+      limit: 50
+    }, 'query'],
+    ['Email/get', {
+      accountId: account.accountId,
+      '#ids': { resultOf: 'query', name: 'Email/query', path: '/ids' },
+      properties: ['id', 'subject', 'preview', 'receivedAt', 'from', 'keywords']
+    }, 'emails']
+  ]);
+  return (response.methodResponses?.find((entry: unknown[]) => entry[0] === 'Email/get')?.[1]?.list ?? []) as MailItem[];
 }
 
 export async function fetchMailDetail(account: MailAccount, password: string, id: string): Promise<MailItem> {
@@ -244,8 +255,7 @@ const stripHtml = (value: string) => value
   .trim();
 
 export async function sendMail(account: MailAccount, password: string, to: string, subject: string, body: string) {
-  const mailboxResponse = await call(account, password, [['Mailbox/get', { accountId: account.accountId, ids: null }, 'mailboxes']]);
-  const boxes = mailboxResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Mailbox/get')?.[1]?.list ?? [];
+  const boxes = await mailboxes(account, password);
   const drafts = boxes.find((item: { role?: string }) => item.role === 'drafts')?.id;
   if (!drafts) throw new Error('服务器没有草稿箱');
   const submissionCapability = ['urn:ietf:params:jmap:submission'];

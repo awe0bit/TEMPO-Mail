@@ -100,7 +100,7 @@ export default function AdminAccountsScreen() {
         <FlashList
           data={accounts.data ?? []} keyExtractor={(item) => item.id}
           contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={accounts.isFetching} onRefresh={() => accounts.refetch()} />}
+          refreshControl={<RefreshControl refreshing={accounts.isRefetching} onRefresh={() => accounts.refetch()} />}
           ItemSeparatorComponent={separator}
           ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{accounts.error instanceof Error ? accounts.error.message : '没有账户或当前权限不足'}</Text>}
           renderItem={({ item }) => (
@@ -117,7 +117,7 @@ export default function AdminAccountsScreen() {
         <FlashList
           data={temporary.data ?? []} keyExtractor={(item) => item.id}
           contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={temporary.isFetching} onRefresh={() => temporary.refetch()} />}
+          refreshControl={<RefreshControl refreshing={temporary.isRefetching} onRefresh={() => temporary.refetch()} />}
           ItemSeparatorComponent={separator}
           ListEmptyComponent={<Text style={[styles.empty, { color: theme.colors.onSurfaceVariant }]}>{temporary.error instanceof Error ? temporary.error.message : '没有临时邮箱，或服务器未启用 Masked Email'}</Text>}
           renderItem={({ item }) => (

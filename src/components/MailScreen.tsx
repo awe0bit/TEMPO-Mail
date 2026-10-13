@@ -50,7 +50,7 @@ export function MailScreen() {
       }} />
       <MailList
         data={query.data ?? []}
-        refreshing={query.isFetching}
+        refreshing={query.isRefetching}
         onRefresh={() => void query.refetch()}
         emptyTitle={`暂无${folder.label}邮件`}
         emptyDetail="下拉即可重新检查服务器"

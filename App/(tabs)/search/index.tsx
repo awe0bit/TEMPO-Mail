@@ -41,7 +41,7 @@ export default function SearchScreen() {
       }} />
       <MailList
         data={query.data ?? []}
-        refreshing={query.isFetching}
+        refreshing={query.isRefetching}
         onRefresh={() => { if (term) void query.refetch(); }}
         emptyTitle={term ? '没有找到邮件' : '搜索全部邮件'}
         emptyDetail={term ? '换一个关键词再试试' : '输入发件人、主题或正文关键词'}

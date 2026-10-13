@@ -48,6 +48,22 @@ async function queryTotal(account: MailAccount, password: string, objectName: st
   return Number(result?.total ?? result?.ids?.length ?? 0);
 }
 
+async function queryOverviewTotals(account: MailAccount, password: string) {
+  const accountId = account.managementAccountId ?? account.accountId;
+  const requests = [
+    ['x:Account/query', { accountId, filter: { '@type': 'User' }, limit: 1, calculateTotal: true }, 'accounts'],
+    ['x:Domain/query', { accountId, filter: {}, limit: 1, calculateTotal: true }, 'domains'],
+    ['x:QueuedMessage/query', { accountId, filter: {}, limit: 1, calculateTotal: true }, 'queued'],
+    ['x:BlockedIp/query', { accountId, filter: {}, limit: 1, calculateTotal: true }, 'blockedIps']
+  ];
+  const json = await adminCall(account, password, requests);
+  const total = (id: string) => {
+    const result = json.methodResponses?.find((entry: unknown[]) => entry[2] === id)?.[1];
+    return Number(result?.total ?? result?.ids?.length ?? 0);
+  };
+  return { accounts: total('accounts'), domains: total('domains'), queued: total('queued'), blockedIps: total('blockedIps') };
+}
+
 export type AdminMetric = {
   '@type': 'Counter' | 'Gauge' | 'Histogram';
   metric: string;
@@ -76,15 +92,12 @@ export async function fetchAdminOverview(account: MailAccount, password: string)
     ['x:Metric/query', { accountId: account.managementAccountId ?? account.accountId, filter: { timestampIsGreaterThanOrEqual: from, metric: metricNames }, limit: 1000 }, 'q'],
     ['x:Metric/get', { accountId: account.managementAccountId ?? account.accountId, '#ids': { resultOf: 'q', name: 'x:Metric/query', path: '/ids' } }, 'g']
   ]).then((json) => ({ list: json.methodResponses?.find((entry: unknown[]) => entry[0] === 'x:Metric/get')?.[1]?.list ?? [], available: true })).catch(() => ({ list: [], available: false }));
-  const [accounts, domains, queued, failedTasks, blockedIps, metricsResult] = await Promise.all([
-    queryTotal(account, password, 'x:Account', { '@type': 'User' }),
-    queryTotal(account, password, 'x:Domain'),
-    queryTotal(account, password, 'x:QueuedMessage'),
+  const [totals, failedTasks, metricsResult] = await Promise.all([
+    queryOverviewTotals(account, password),
     queryTotal(account, password, 'x:Task', { status: 'Failed' }).catch(() => 0),
-    queryTotal(account, password, 'x:BlockedIp'),
     metricsRequest
   ]);
-  return { accounts, domains, queued, failedTasks, blockedIps, metrics: metricsResult.list, metricsAvailable: metricsResult.available };
+  return { ...totals, failedTasks, metrics: metricsResult.list, metricsAvailable: metricsResult.available };
 }
 
 export async function queryAdminResource(account: MailAccount, password: string, schema: AdminSchema, viewName: string, options: { search?: string; filter?: Record<string, unknown>; limit?: number } = {}) {
