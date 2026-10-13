@@ -1,10 +1,10 @@
-import { Host, Image as NativeImage } from '@expo/ui/swift-ui';
+import { SymbolView } from 'expo-symbols';
 import type { ComponentProps, PropsWithChildren } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { List, Text, useTheme } from 'react-native-paper';
 
 export type SettingsTone = 'blue' | 'green' | 'orange' | 'purple' | 'red' | 'teal' | 'gray';
-export type SettingsSymbol = ComponentProps<typeof NativeImage>['systemName'];
+export type SettingsSymbol = ComponentProps<typeof SymbolView>['name'];
 
 const tones: Record<SettingsTone, { light: string; dark: string }> = {
   blue: { light: '#007AFF', dark: '#0A84FF' },
@@ -19,13 +19,13 @@ const tones: Record<SettingsTone, { light: string; dark: string }> = {
 export function SettingsIcon({ symbol, tone = 'blue' }: { symbol: SettingsSymbol; tone?: SettingsTone }) {
   const theme = useTheme();
   return <View style={[styles.iconTile, { backgroundColor: tones[tone][theme.dark ? 'dark' : 'light'] }]}>
-    <Host style={styles.iconHost}><NativeImage systemName={symbol} color="#FFFFFF" size={17} /></Host>
+    <SymbolView name={symbol} tintColor="#FFFFFF" size={17} weight="semibold" resizeMode="center" style={styles.iconSymbol} />
   </View>;
 }
 
 export function SettingsChevron() {
   const theme = useTheme();
-  return <Host style={styles.chevronHost}><NativeImage systemName="chevron.right" color={theme.colors.onSurfaceVariant} size={13} /></Host>;
+  return <SymbolView name="chevron.right" tintColor={theme.colors.onSurfaceVariant} size={13} weight="semibold" resizeMode="center" style={styles.chevron} />;
 }
 
 export function SettingsRow({
@@ -78,8 +78,8 @@ const styles = StyleSheet.create({
   row: { minHeight: 58, paddingVertical: 1, paddingLeft: 2 },
   left: { width: 48, alignItems: 'center', justifyContent: 'center' },
   iconTile: { width: 30, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  iconHost: { width: 20, height: 20, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  chevronHost: { width: 16, height: 22, alignItems: 'center', justifyContent: 'center' },
+  iconSymbol: { width: 20, height: 20 },
+  chevron: { width: 16, height: 22 },
   right: { maxWidth: '48%', minHeight: 56, paddingRight: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 7 },
   title: { fontSize: 17, letterSpacing: -0.25 },
   description: { fontSize: 13, lineHeight: 18 },

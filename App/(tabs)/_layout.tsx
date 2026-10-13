@@ -1,25 +1,22 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useEffect, useState } from 'react';
+import { DynamicColorIOS } from 'react-native';
 import { useAppState } from '@/state/app-state';
+
+const tabColors = {
+  default: DynamicColorIOS({ light: 'rgba(60, 60, 67, 0.60)', dark: 'rgba(235, 235, 245, 0.60)' }),
+  selected: DynamicColorIOS({ light: '#000000', dark: '#FFFFFF' })
+};
 
 export default function TabLayout() {
   const { admin } = useAppState();
-  const [layoutPass, setLayoutPass] = useState(0);
-
-  useEffect(() => {
-    let secondFrame = 0;
-    const firstFrame = requestAnimationFrame(() => {
-      secondFrame = requestAnimationFrame(() => setLayoutPass(1));
-    });
-    return () => {
-      cancelAnimationFrame(firstFrame);
-      if (secondFrame) cancelAnimationFrame(secondFrame);
-    };
-  }, []);
 
   return (
     <NativeTabs
-      key={`${admin ? 'admin' : 'mail'}-${layoutPass}`}
+      iconColor={tabColors}
+      labelStyle={{
+        default: { color: tabColors.default },
+        selected: { color: tabColors.selected }
+      }}
       minimizeBehavior="never"
     >
       <NativeTabs.Trigger name="inbox">
