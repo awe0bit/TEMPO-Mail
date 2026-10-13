@@ -25,7 +25,8 @@ export function TempoTabBar({ state, navigation, insets, admin }: BottomTabBarPr
   const { width } = useWindowDimensions();
   const tabs = admin ? mailboxTabs : mailboxTabs.filter((tab) => tab.name !== 'overview');
   const horizontalInset = 20;
-  const searchSize = 60;
+  const barHeight = 56;
+  const searchSize = 56;
   const gap = 10;
   const groupWidth = width - horizontalInset * 2 - searchSize - gap;
   const itemWidth = groupWidth / tabs.length;
@@ -42,13 +43,13 @@ export function TempoTabBar({ state, navigation, insets, admin }: BottomTabBarPr
   const bottom = Math.max(insets.bottom, 8);
 
   return (
-    <View pointerEvents="box-none" style={[styles.container, { height: 68 + bottom, paddingBottom: bottom, paddingHorizontal: horizontalInset, gap }]}>
-      <Host colorScheme={scheme} ignoreSafeArea="all" style={{ height: 60, width: groupWidth }}>
+    <View pointerEvents="box-none" style={[styles.container, { height: barHeight + 4 + bottom, paddingBottom: bottom, paddingHorizontal: horizontalInset, gap }]}>
+      <Host colorScheme={scheme} ignoreSafeArea="all" style={{ height: barHeight, width: groupWidth }}>
         <GlassEffectContainer spacing={8}>
           <HStack
             spacing={0}
             modifiers={[
-              frame({ width: groupWidth, height: 60 }),
+              frame({ width: groupWidth, height: barHeight }),
               glassEffect({ glass: { variant: 'regular', interactive: true }, shape: 'capsule' })
             ]}
           >
@@ -59,12 +60,19 @@ export function TempoTabBar({ state, navigation, insets, admin }: BottomTabBarPr
                   key={tab.name}
                   onPress={() => open(tab.name)}
                   modifiers={[
-                    frame({ width: itemWidth, height: 54 }),
+                    frame({ width: itemWidth, height: barHeight }),
                     buttonBorderShape('capsule'),
-                    buttonStyle(selected ? 'glass' : 'plain')
+                    buttonStyle('plain')
                   ]}
                 >
-                  <VStack alignment="center" spacing={2} modifiers={[frame({ width: itemWidth, height: 50 })]}>
+                  <VStack
+                    alignment="center"
+                    spacing={1}
+                    modifiers={[
+                      frame({ width: itemWidth - 4, height: barHeight - 6 }),
+                      ...(selected ? [glassEffect({ glass: { variant: 'regular', interactive: true }, shape: 'capsule' })] : [])
+                    ]}
+                  >
                     <Image systemName={tab.symbol} size={22} color={selected ? theme.colors.onBackground : theme.colors.onSurfaceVariant} />
                     <Text modifiers={[
                       font({ size: 11, weight: 'medium' }),

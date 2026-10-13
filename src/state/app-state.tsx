@@ -67,7 +67,11 @@ export const useAppState = create<Store>((set, get) => ({
     // administrator tab does not get inserted after the tab bar is visible.
     set({ ready: true, preview, accounts: saved.accounts, selectedId: saved.selectedId, access: cachedAccess, ...derive(saved.accounts, saved.selectedId, cachedAccess) });
     if (!selected || preview) return;
-    const access = await loadAccess(selected);
+    const refreshedAccess = await loadAccess(selected);
+    // A transient network/auth refresh must not make the administrator tab
+    // disappear and rebuild the native tab bar after it is already visible.
+    // Keep the last confirmed capability set until a later refresh succeeds.
+    const access = refreshedAccess ?? cachedAccess;
     await persist(saved.accounts, saved.selectedId, access);
     if (get().selectedId === saved.selectedId) set({ access, ...derive(saved.accounts, saved.selectedId, access) });
   },

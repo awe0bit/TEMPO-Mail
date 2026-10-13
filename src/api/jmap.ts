@@ -20,10 +20,26 @@ function accountLogins(account: MailAccount) {
 export async function authenticatedRequest(account: MailAccount, password: string, url: string, init: RequestInit = {}, timeout = 15000) {
   let lastResponse: Response | null = null;
   for (const login of accountLogins(account)) {
-    const response = await fetchWithTimeout(url, {
+    const request = {
       ...init,
+      cache: 'no-store' as RequestCache,
       headers: { ...init.headers, Authorization: authorization(login, password) }
-    }, timeout);
+    };
+    let response = await fetchWithTimeout(url, request, timeout);
+
+    // Stalwart's schema endpoint redirects to a versioned URL. CFNetwork
+    // follows that redirect but removes Authorization, even though the target
+    // is on the same origin. Retry the resolved URL explicitly so iOS sends
+    // the credentials on the actual schema request.
+    if ((response.status === 401 || response.status === 403) && response.url && response.url !== url) {
+      try {
+        if (new URL(response.url).origin === new URL(url).origin) {
+          response = await fetchWithTimeout(response.url, request, timeout);
+        }
+      } catch {
+        // Fall through to the normal authentication error handling.
+      }
+    }
     if (response.status === 401 || response.status === 403) {
       lastResponse = response;
       continue;
@@ -144,14 +160,17 @@ export const hasPermission = (access: AdminAccess | null, value: string) =>
 export const isAdministrator = (access: AdminAccess | null) =>
   hasPermission(access, 'sysAccountGet') && hasPermission(access, 'sysAccountQuery');
 
-async function call(account: MailAccount, password: string, methodCalls: unknown[]) {
+async function call(account: MailAccount, password: string, methodCalls: unknown[], extraCapabilities: string[] = []) {
   const response = await authenticatedRequest(account, password, account.apiUrl, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail', 'urn:ietf:params:jmap:submission'], methodCalls })
+    body: JSON.stringify({
+      using: ['urn:ietf:params:jmap:core', 'urn:ietf:params:jmap:mail', ...extraCapabilities],
+      methodCalls
+    })
   });
   const json = await response.json();
   const failure = json.methodResponses?.find((entry: unknown[]) => entry[0] === 'error');
@@ -229,7 +248,8 @@ export async function sendMail(account: MailAccount, password: string, to: strin
   const boxes = mailboxResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'Mailbox/get')?.[1]?.list ?? [];
   const drafts = boxes.find((item: { role?: string }) => item.role === 'drafts')?.id;
   if (!drafts) throw new Error('服务器没有草稿箱');
-  const identities = await call(account, password, [['Identity/get', { accountId: account.accountId }, 'i']]);
+  const submissionCapability = ['urn:ietf:params:jmap:submission'];
+  const identities = await call(account, password, [['Identity/get', { accountId: account.accountId }, 'i']], submissionCapability);
   const identity = identities.methodResponses?.[0]?.[1]?.list?.find((item: any) => item.email?.toLowerCase() === account.email.toLowerCase()) ?? identities.methodResponses?.[0]?.[1]?.list?.[0];
   if (!identity) throw new Error('服务器没有可用于发信的身份');
   const recipients = to.split(/[,;]/).map((value) => value.trim()).filter(Boolean).map((email) => ({ email }));
@@ -248,7 +268,7 @@ export async function sendMail(account: MailAccount, password: string, to: strin
   if (!emailId) throw new Error('服务器没有返回新邮件 ID');
   const submittedResponse = await call(account, password, [['EmailSubmission/set', {
     accountId: account.accountId, create: { submission: { identityId: identity.id, emailId } }
-  }, 'submit']]);
+  }, 'submit']], submissionCapability);
   const submitted = submittedResponse.methodResponses?.find((entry: unknown[]) => entry[0] === 'EmailSubmission/set')?.[1];
   const failure = submitted?.notCreated?.submission;
   if (failure) throw new Error(failure.description || failure.type || '发送失败');

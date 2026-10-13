@@ -62,6 +62,7 @@ export default function SettingsScreen() {
         <MotionView distance={7} style={[styles.notice, { backgroundColor: theme.colors.surface }]}>
           <Text variant="titleMedium">无法读取服务器功能</Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{schema.error instanceof Error ? schema.error.message : '服务器设置加载失败'}</Text>
+          <SettingsRow title="重新读取" description="重新验证管理员权限与服务器配置" symbol="arrow.triangle.2.circlepath" tone="blue" onPress={() => schema.refetch()} />
         </MotionView>
       ) : schema.data ? <MotionView distance={7}>
         {admin && <SchemaLayout

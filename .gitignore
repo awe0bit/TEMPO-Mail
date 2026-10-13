@@ -2,6 +2,7 @@
 node_modules/
 .expo/
 dist-check/
+.expo-export-check/
 dist/
 ios/
 .build/

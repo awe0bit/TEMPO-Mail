@@ -23,12 +23,10 @@ async function adminCall(account: MailAccount, password: string, methodCalls: un
       Accept: 'application/json', 'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      using: [
-        'urn:ietf:params:jmap:core', 'urn:stalwart:jmap', 'urn:ietf:params:jmap:mail',
-        'urn:ietf:params:jmap:calendars', 'urn:ietf:params:jmap:contacts',
-        'urn:ietf:params:jmap:principals', 'urn:ietf:params:jmap:sieve',
-        'urn:ietf:params:jmap:vacationresponse'
-      ],
+      // Stalwart management objects are exposed by its own JMAP capability.
+      // Advertising optional capabilities that this server does not enable
+      // makes the entire request fail with HTTP 400 unknownCapability.
+      using: ['urn:ietf:params:jmap:core', 'urn:stalwart:jmap'],
       methodCalls
     })
   });
